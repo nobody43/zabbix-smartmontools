@@ -4,7 +4,7 @@
 
 # path to second send script
 senderPyPath = r'/etc/zabbix/scripts/smartctl-send.py'               # Linux
-#senderPyPath = 'C:\zabbix-agent\scripts\smartctl-send.py'           # Win
+#senderPyPath = r'C:\zabbix-agent\scripts\smartctl-send.py'          # Win
 #senderPyPath = r'/usr/local/etc/zabbix/scripts/smartctl-send.py'    # BSD
 
 # provide raid configuration if needed
