@@ -2,7 +2,7 @@
 
 ## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools
 
-mode = 'serial'   # 'serial' or 'device'
+mode = 'device'   # 'device' or 'serial'
 
 # path to second send script
 senderPyPath = r'/etc/zabbix/scripts/smartctl-send.py'               # Linux
