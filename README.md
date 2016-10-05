@@ -1,6 +1,6 @@
 # zabbix-smartmontools
 ## Features
-Cross-platform SMART monitoring scripts with two display modes for your liking: [device](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-device.png?raw=true) (default) and [serial](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-serial.png?raw=true). LLD discovers and sends data in one pass, using minimal number of utilities.
+Cross-platform SMART monitoring scripts with two display modes for your liking: [device](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-device.png?raw=true) (default) and [serial](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-serial.png?raw=true). LLD discovers and sends data in one pass, using minimal number of utilities. Supports any SMART name and displays it as is.
 
 #### Advantages
 - Full Low-Level Discovery: there is no need to add any SMART items
