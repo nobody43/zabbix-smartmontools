@@ -81,9 +81,14 @@ These scripts were tested to work with following configurations:
 - FreeBSD 10.1 / Zabbix 2.4 / Python 3.4
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
+## Issues
+- Zabbix web panel displays an error on json discovery, but apparently everything works fine
+- Windows version does not detaches currently, and data will only be gathered on second pass
+
 ## Planned features
-- communication through pipes instead of arguments
-- detaching in Windows script
+- Communication through pipes instead of arguments
+- Detaching in Windows script
+- Disk SMART capability auto-enabling
 
 ## Links
 - https://www.smartmontools.org
