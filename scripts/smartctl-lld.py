@@ -2,7 +2,7 @@
 
 ## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools
 
-mode = 'device'   # 'device' or 'serial'
+mode = 'device'   # 'device' or 'serial' as primary identifier
 
 # path to second send script
 senderPyPath = r'/etc/zabbix/scripts/smartctl-send.py'               # Linux
@@ -83,7 +83,7 @@ for d in diskListRe:   # loop through all found drives
         jsonData.append({'{#DSELFTEST}':d})
         senderData.append('- smartctl.info[' + d + ',selftest] "' + selftestRe.group(1) + '"')
 
-    valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([a-z_-]+)\s+[\w-]+\s+\d+\s+\d+\s+\d+\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', ctlOut, re.M | re.I)   # catch id, name and value
+    valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+\d{3}\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', ctlOut, re.M | re.I)   # catch id, name and value
     #print(d + ': valuesRe:\n', valuesRe)
     for v in valuesRe:
         if v[0] == '5':                         # semi-hardcoded values for triggers
