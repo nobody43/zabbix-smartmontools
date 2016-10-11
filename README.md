@@ -94,5 +94,7 @@ These scripts were tested to work with following configurations:
 - https://www.smartmontools.org
 - http://unlicense.org
 
+<br />
+
 - [The 5 SMART stats that actually predict hard drive failure](http://www.computerworld.com/article/2846009/the-5-smart-stats-that-actually-predict-hard-drive-failure.html)
 - [Disk and CPU temperature monitoring solution](https://github.com/nobodysu/zabbix-mini-IPMI)
