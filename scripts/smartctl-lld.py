@@ -2,7 +2,8 @@
 
 ## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools
 
-mode = 'device'   # 'device' or 'serial' as primary identifier
+mode = 'device'   # 'device' or 'serial' as primary identifier in zabbix item's name
+hostnameFrom = 'config'   # 'config', 'fqdn' or 'shortname'. 'config' is faster, but can't work when 'Hostname' is not specified in agent config.
 
 # path to second send script
 senderPyPath = r'/etc/zabbix/scripts/smartctl-send.py'               # Linux
@@ -15,10 +16,21 @@ raidOverride = []
 #raidOverride = ['sda -d sat+megaraid,4', 'sda -d sat+megaraid,5']
 # more info: https://www.smartmontools.org/wiki/Supported_RAID-Controllers
 
+## End of configuration ##
+
 import sys
 import subprocess
 import re
 import json
+
+if hostnameFrom == 'fqdn':
+    import socket
+    hostname = socket.getfqdn()
+elif hostnameFrom == 'shortname':
+    import socket
+    hostname = socket.gethostname()
+else:
+    hostname = '-'
 
 jsonData = []
 senderData = []
@@ -47,41 +59,41 @@ for d in diskListRe:   # loop through all found drives
             # ! 'd' becomes serial !
 
         jsonData.append({'{#DSERIAL}':d})
-        senderData.append('- smartctl.info[' + d + ',serial] "' + serialRe.group(1) + '"')
+        senderData.append(hostname + ' smartctl.info[' + d + ',serial] "' + serialRe.group(1) + '"')
 
     jsonData.append({'{#DNAME}':d})
-    senderData.append('- smartctl.info[' + d + ',device] "' + deviceName + '"')
+    senderData.append(hostname + ' smartctl.info[' + d + ',device] "' + deviceName + '"')
 
     modelRe = re.search(r'^Device Model:\s+(.+)$', ctlOut, re.M | re.I)
     #print(d + ': modelRe.group(1):       ' + modelRe.group(1))
     if modelRe:
         jsonData.append({'{#DMODEL}':d})
-        senderData.append('- smartctl.info[' + d + ',model] "' + modelRe.group(1) + '"')
+        senderData.append(hostname + ' smartctl.info[' + d + ',model] "' + modelRe.group(1) + '"')
 
     firmwareRe = re.search(r'^Firmware Version:\s+(.+)$', ctlOut, re.M | re.I)
     #print(d + ': firmwareRe.group(1):    ' + firmwareRe.group(1))
     if firmwareRe:
         jsonData.append({'{#DFIRMWARE}':d})
-        senderData.append('- smartctl.info[' + d + ',firmware] "' + firmwareRe.group(1) + '"')
+        senderData.append(hostname + ' smartctl.info[' + d + ',firmware] "' + firmwareRe.group(1) + '"')
 
     capacityRe = re.search(r'User Capacity:\s+(.+)bytes', ctlOut, re.I)
     if capacityRe:
         capacityValue = re.sub('\D', '', capacityRe.group(1))   # substitute all but numbers
         #print(d + ': capacityValue:          ' + capacityValue)
         jsonData.append({'{#DCAPACITY}':d})
-        senderData.append('- smartctl.info[' + d + ',capacity] "' + capacityValue + '"')
+        senderData.append(hostname + ' smartctl.info[' + d + ',capacity] "' + capacityValue + '"')
 
     rpmRe = re.search(r'^Rotation Rate:\s+(\d+)\s+rpm$', ctlOut, re.M | re.I)
     #print(d + ': rpmRe.group(1):         ' + rpmRe.group(1))
     if rpmRe:
         jsonData.append({'{#DRPM}':d})
-        senderData.append('- smartctl.info[' + d + ',rpm] "' + rpmRe.group(1) + '"')
+        senderData.append(hostname + ' smartctl.info[' + d + ',rpm] "' + rpmRe.group(1) + '"')
 
     selftestRe = re.search(r'^SMART overall-health self-assessment test result:\s+(.+)$', ctlOut, re.M | re.I)
     #print(d + ': selftestRe.group(1):    ' + selftestRe.group(1))
     if selftestRe:
         jsonData.append({'{#DSELFTEST}':d})
-        senderData.append('- smartctl.info[' + d + ',selftest] "' + selftestRe.group(1) + '"')
+        senderData.append(hostname + ' smartctl.info[' + d + ',selftest] "' + selftestRe.group(1) + '"')
 
     valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+\d{3}\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', ctlOut, re.M | re.I)   # catch id, name and value
     #print(d + ': valuesRe:\n', valuesRe)
@@ -101,7 +113,7 @@ for d in diskListRe:   # loop through all found drives
         else:
             jsonData.append({'{#DVALUE}':d, '{#SMARTID}':v[0], '{#SMARTNAME}':v[1]})   # all other possible values
 
-        senderData.append('- smartctl.value[' + d + ',' + v[0] + '] ' + v[2])
+        senderData.append(hostname + ' smartctl.value[' + d + ',' + v[0] + '] ' + v[2])
 
 print(json.dumps({"data": jsonData}, indent=4))   # print data gathered for LLD
 
@@ -118,5 +130,5 @@ if sys.argv[1] == 'get':
 elif sys.argv[1] == '-v':
     subprocess.Popen([cmd, senderPyPath, '-v', senderDataNStr])   # do not detach if in verbose mode, also skips timeout in smartctl-send.py
 else:
-    print("smartctl-lld: Not supported. Use 'get' or '-v'.")
+    print(sys.argv[0] + " : Not supported. Use 'get' or '-v'.")
     sys.exit(1)

@@ -10,7 +10,9 @@ agentConf = r'/etc/zabbix/zabbix_agentd.conf'                   # Linux
 senderPath = r'zabbix_sender'                                   # Linux, BSD
 #senderPath = r'C:\zabbix-agent\bin\win32\zabbix_sender.exe'    # Win
 
-timeout = 3   # how much to wait between LLD and sending
+timeout = 60   # how long the script must wait between LLD and sending, increase if data received late
+
+## End of configuration ##
 
 import sys
 import subprocess
@@ -27,7 +29,7 @@ elif sys.argv[1] == '-v':
     senderProc = subprocess.Popen([senderPath, '-v', '-c', agentConf, '-i', '-'], stdin=subprocess.PIPE, universal_newlines=True)   # verbose sender output
     print('\n  Note: the sender will fail if server did not gather LLD previously.')
 else:
-    print("smartctl-send: Not supported. Use 'get' or '-v'.")
+    print(sys.argv[0] + " : Not supported. Use 'get' or '-v'.")
     sys.exit(1)
 
 senderProc.communicate(input=senderDataNStr)
