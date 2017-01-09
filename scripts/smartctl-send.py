@@ -10,7 +10,7 @@ agentConf = r'/etc/zabbix/zabbix_agentd.conf'                   # Linux
 senderPath = r'zabbix_sender'                                   # Linux, BSD
 #senderPath = r'C:\zabbix-agent\bin\win32\zabbix_sender.exe'    # Win
 
-timeout = 60   # how long the script must wait between LLD and sending, increase if data received late
+timeout = 3   # how long the script must wait between LLD and sending, increase if data received late
 
 ## End of configuration ##
 
