@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2016-09-27T23:52:50Z</date>
+    <date>2017-01-24T20:11:49Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -25,14 +25,58 @@
                     <name>SMART values</name>
                 </application>
             </applications>
-            <items/>
+            <items>
+                <item>
+                    <name>Template configuration status</name>
+                    <type>2</type>
+                    <snmp_community/>
+                    <multiplier>0</multiplier>
+                    <snmp_oid/>
+                    <key>smartctl.info[ConfigStatus]</key>
+                    <delay>0</delay>
+                    <history>90</history>
+                    <trends>365</trends>
+                    <status>0</status>
+                    <value_type>4</value_type>
+                    <allowed_hosts/>
+                    <units/>
+                    <delta>0</delta>
+                    <snmpv3_contextname/>
+                    <snmpv3_securityname/>
+                    <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                    <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                    <snmpv3_authpassphrase/>
+                    <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                    <snmpv3_privpassphrase/>
+                    <formula>1</formula>
+                    <delay_flex/>
+                    <params/>
+                    <ipmi_sensor/>
+                    <data_type>0</data_type>
+                    <authtype>0</authtype>
+                    <username/>
+                    <password/>
+                    <publickey/>
+                    <privatekey/>
+                    <port/>
+                    <description/>
+                    <inventory_link>0</inventory_link>
+                    <applications>
+                        <application>
+                            <name>SMART info</name>
+                        </application>
+                    </applications>
+                    <valuemap/>
+                    <logtimefmt/>
+                </item>
+            </items>
             <discovery_rules>
                 <discovery_rule>
                     <name>SMART disk discovery</name>
                     <type>0</type>
                     <snmp_community/>
                     <snmp_oid/>
-                    <key>smartctl.discovery[get]</key>
+                    <key>smartctl.discovery[get,{HOST.HOST}]</key>
                     <delay>43200</delay>
                     <status>0</status>
                     <allowed_hosts/>
@@ -57,8 +101,8 @@
                         <formula/>
                         <conditions/>
                     </filter>
-                    <lifetime>30</lifetime>
-                    <description>By default, every 12 hours LLD will be gathered and 3 seconds after (configurable in script) trapper items will be sent to server.&#13;
+                    <lifetime>0</lifetime>
+                    <description>By default, every 12 hours LLD will be gathered and 60 seconds after (configurable in script) trapper items will be sent to server.&#13;
 Note: at the moment windows items are sent only on second run (after discovery).</description>
                     <item_prototypes>
                         <item_prototype>
@@ -666,12 +710,22 @@ Note: at the moment windows items are sent only on second run (after discovery).
                     </item_prototypes>
                     <trigger_prototypes>
                         <trigger_prototype>
-                            <expression>{Template App smartmontools:smartctl.info[{#DMODEL},model].diff(0)}&gt;0</expression>
-                            <name>{#DMODEL}: Device model had changed on {HOST.NAME}</name>
+                            <expression>{Template App smartmontools:smartctl.info[{#DFIRMWARE},firmware].diff(0)}&gt;0 and&#13;
+{Template App smartmontools:smartctl.info[{#DSERIAL},serial].diff(0)}&gt;1</expression>
+                            <name>{#DFIRMWARE}: Firmware version had changed on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>0</priority>
-                            <description>This means that device name was probably changed or disk swapped.</description>
+                            <priority>1</priority>
+                            <description>Trigger only if firmware is changes but serial is NOT (means that drive is not repalced).</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DNAME},device].diff(0)}&gt;0</expression>
+                            <name>{#DNAME}: Device name had changed on {HOST.NAME}</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>1</priority>
+                            <description/>
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
@@ -679,7 +733,16 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <name>{#DSELFTEST}: Overall-health self-assessment test had FAILED on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>3</priority>
+                            <priority>4</priority>
+                            <description/>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DSERIAL},serial].diff(0)}&gt;0</expression>
+                            <name>{#DSERIAL}: Serial number had changed on {HOST.NAME}</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>1</priority>
                             <description/>
                             <type>0</type>
                         </trigger_prototype>
@@ -688,7 +751,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <name>{#DVALUE5}: [5]Reallocated_Sector_Count is more than 0 on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>3</priority>
+                            <priority>4</priority>
                             <description/>
                             <type>0</type>
                         </trigger_prototype>
@@ -697,7 +760,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <name>{#DVALUE187}: [187]Reported_Uncorrectable_Errors is more than 0 on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>3</priority>
+                            <priority>4</priority>
                             <description/>
                             <type>0</type>
                         </trigger_prototype>
@@ -706,7 +769,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <name>{#DVALUE188}: [188]Command_Timeout is more than 0 on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>3</priority>
+                            <priority>4</priority>
                             <description/>
                             <type>0</type>
                         </trigger_prototype>
@@ -715,7 +778,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <name>{#DVALUE197}: [197]Current_Pending_Sector_Count is more than 0 on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>3</priority>
+                            <priority>4</priority>
                             <description/>
                             <type>0</type>
                         </trigger_prototype>
@@ -724,7 +787,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <name>{#DVALUE198}: [198]Offline_Uncorrectable is more than 0 on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>3</priority>
+                            <priority>4</priority>
                             <description/>
                             <type>0</type>
                         </trigger_prototype>
@@ -733,7 +796,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <name>{#DVALUE199}: [199]UDMA_CRC_Error_Count is more than 10 on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
-                            <priority>1</priority>
+                            <priority>2</priority>
                             <description>This means you probably need to check your cables and device ports.</description>
                             <type>0</type>
                         </trigger_prototype>
@@ -747,4 +810,56 @@ Note: at the moment windows items are sent only on second run (after discovery).
             <screens/>
         </template>
     </templates>
+    <triggers>
+        <trigger>
+            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(NODISKS)}=1</expression>
+            <name>App smartmontools: no disks were found for SMART test</name>
+            <url/>
+            <status>0</status>
+            <priority>1</priority>
+            <description>smartmontools requires administrative permissions.</description>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(MISSINGRIGHTS)}=1</expression>
+            <name>App smartmontools: smartctl does not have sudo/admin access</name>
+            <url/>
+            <status>0</status>
+            <priority>1</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(NOCMD)}=1</expression>
+            <name>App smartmontools: smartctl was not found in PATH or manually</name>
+            <url/>
+            <status>0</status>
+            <priority>1</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(ERROR)}=1</expression>
+            <name>App smartmontools: something went wrong</name>
+            <url/>
+            <status>0</status>
+            <priority>1</priority>
+            <description>Something went wrong: check permissions, admin access, etc.</description>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].nodata(168h)}=1</expression>
+            <name>App smartmontools: template is assigned, but no data is recieved</name>
+            <url/>
+            <status>0</status>
+            <priority>1</priority>
+            <description>If template is assigned to the host, but no data is gathered within one week.</description>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+    </triggers>
 </zabbix_export>

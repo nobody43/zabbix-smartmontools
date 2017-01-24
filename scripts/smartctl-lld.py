@@ -3,17 +3,19 @@
 ## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools
 
 mode = 'device'   # 'device' or 'serial' as primary identifier in zabbix item's name
-hostnameFrom = 'config'   # 'config', 'fqdn' or 'shortname'. 'config' is faster, but can't work when 'Hostname' is not specified in agent config.
+
+ctlPath = 'smartctl'
+#ctlPath = r'"C:\Program Files\smartmontools\bin\smartctl.exe"'   # if smartctl isn't in PATH
 
 # path to second send script
 senderPyPath = r'/etc/zabbix/scripts/smartctl-send.py'               # Linux
 #senderPyPath = r'C:\zabbix-agent\scripts\smartctl-send.py'          # Win
 #senderPyPath = r'/usr/local/etc/zabbix/scripts/smartctl-send.py'    # BSD
 
-# provide raid configuration if needed
-raidOverride = []
+# manually provide disk list or RAID configuration if needed
+diskListManual = []
 # like this:
-#raidOverride = ['sda -d sat+megaraid,4', 'sda -d sat+megaraid,5']
+#diskListManual = ['sda -d sat+megaraid,4', 'sda -d sat+megaraid,5']
 # more info: https://www.smartmontools.org/wiki/Supported_RAID-Controllers
 
 ## End of configuration ##
@@ -23,39 +25,41 @@ import subprocess
 import re
 import json
 
-if hostnameFrom == 'fqdn':
-    import socket
-    hostname = socket.getfqdn()
-elif hostnameFrom == 'shortname':
-    import socket
-    hostname = socket.gethostname()
-else:
-    hostname = '-'
+hostname = '"' + sys.argv[2] + '"'
 
 jsonData = []
 senderData = []
+allDisksStdout = ''
+ctlOut = ''
 
-if not raidOverride:   # if RAID is not defined
-    allDisksStdout = subprocess.getoutput('smartctl --scan')   # scan the disks
+stopChars = [(' -d', ''), (',', ''), ('[', ' '), (']', ' '), ('+', '_'), ('  ', ' '), ('/', '_'), ('~', '_'), ('`', '_'), ('@', '_'), ('#', '_'), ('$', '_'), ('%', '_'), ('^', '_'), ('&', '_'), ('*', '_'), ('(', '_'), (')', '_'), ('{', '_'), ('}', '_'), ('=', '_'), (':', '_'), (';', '_'), ('"', '_'), ('?', '_'), ('<', '_'), ('>', '_'), (' ', '_')]
+
+def replace_all(string, stopChars):
+    for i, j in stopChars:
+        string = string.replace(i, j)
+    return string
+
+if not diskListManual:   # if manual list is not provided
+    allDisksStdout = subprocess.getoutput(ctlPath + ' --scan')   # scan the disks
     diskListRe = re.findall(r'^/dev/(\w+)', allDisksStdout, re.M)   # and determine short device names
 else:
-    diskListRe = raidOverride   # or just use manually provided settings
+    diskListRe = diskListManual   # or just use manually provided settings
 
 for d in diskListRe:   # loop through all found drives
-    ctlOut = subprocess.getoutput('smartctl -a /dev/' + d)
+    ctlOut = subprocess.getoutput(ctlPath + ' -a /dev/' + d)
 
-    if raidOverride:
-        d = d.replace(',', '').replace(' -d', '').replace('[', '').replace(']', '').replace('+', '_').replace('  ', ' ').replace(' ', '_')  # slightly sanitize the item key. for RAID only
+    if diskListManual:
+        d = replace_all(d, stopChars)   # sanitize the item key
         # ! 'd' is statically assigned !
     #print('disk:                         ', d)
 
-    deviceName = d   # save device name before mode selection and after RAID substitution
+    deviceName = d   # save device name before mode selection and after manual substitution
 
     serialRe = re.search(r'^Serial Number:\s+(.+)$', ctlOut, re.M | re.I)
     #print(d + ': serialRe.group(1):      ' + serialRe.group(1))
     if serialRe:
         if mode == 'serial':
-            d = serialRe.group(1).replace(',', '').replace('[', '').replace(']', '').replace('+', '_').replace('  ', ' ').replace(' ', '_')   # in 'serial' mode, if serial number is found it will be used as main identifier, also sanitize it
+            d = replace_all(serialRe.group(1), stopChars)   # in 'serial' mode, if serial number is found it will be used as main identifier, also sanitize it
             # ! 'd' becomes serial !
 
         jsonData.append({'{#DSERIAL}':d})
@@ -115,9 +119,19 @@ for d in diskListRe:   # loop through all found drives
 
         senderData.append(hostname + ' smartctl.value[' + d + ',' + v[0] + '] ' + v[2])
 
-print(json.dumps({"data": jsonData}, indent=4))   # print data gathered for LLD
+if senderData:
+    senderData.append(hostname + ' smartctl.info[ConfigStatus] "OK"')   # signals that client host is configured
+else:
+    if ctlOut.find('ermission denied') != -1 or ctlOut.find('missing admin rights') != -1:
+        senderData.append(hostname + ' smartctl.info[ConfigStatus] "MISSINGRIGHTS"')
+    elif allDisksStdout.find('smartctl: not found') != -1 or allDisksStdout.find('\"smartctl\" ') != -1:
+        senderData.append(hostname + ' smartctl.info[ConfigStatus] "NOCMD"')
+    elif not diskListRe:
+        senderData.append(hostname + ' smartctl.info[ConfigStatus] "NODISKS"')   # if no disks were found
+    else:
+        senderData.append(hostname + ' smartctl.info[ConfigStatus] "ERROR"')   # something went wrong
 
-senderDataNStr = '\n'.join(senderData)   # items for zabbix sender separated by newlines
+senderDataNStr = '\n'.join(senderData)   # items for zabbix sender separated by system-specific newlines
 
 if sys.platform != 'win32':   # if not windows
     cmd = 'python3'
@@ -126,9 +140,20 @@ else:
 
 # pass senderDataNStr to smartctl-send.py:
 if sys.argv[1] == 'get':
-    subprocess.Popen([cmd, senderPyPath, 'get', senderDataNStr], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)   # spawn new process and regain shell control immediately (only *nix atm, windows waits)
-elif sys.argv[1] == '-v':
-    subprocess.Popen([cmd, senderPyPath, '-v', senderDataNStr])   # do not detach if in verbose mode, also skips timeout in smartctl-send.py
+    print(json.dumps({"data": jsonData}, indent=4))   # print data gathered for LLD
+
+    senderPy = subprocess.Popen([cmd, senderPyPath, 'get'], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True)   # spawn new process and regain shell control immediately
+    try:
+        senderPy.communicate(input=senderDataNStr, timeout=1)
+    except:
+        pass
+elif sys.argv[1] == 'getverb':
+    senderPy = subprocess.Popen([cmd, senderPyPath, 'getverb'], stdin=subprocess.PIPE, universal_newlines=True)   # do not detach if in verbose mode, also skips timeout in smartctl-send.py
+    try:
+        senderPy.communicate(input=senderDataNStr)
+    except:
+        pass
 else:
-    print(sys.argv[0] + " : Not supported. Use 'get' or '-v'.")
+    print(sys.argv[0] + " : Not supported. Use 'get' or 'getverb'.")
     sys.exit(1)
+
