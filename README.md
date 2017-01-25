@@ -6,11 +6,16 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 - Full Low-Level Discovery: there is no need to add any SMART items
 - Efficient: no unnecessary processes are spawned
 - Bulk items upload with zabbix-sender
+- Error-proof configuration: you'll know when host is not configured
 
 #### Disadvantages
 - Requires configuration
 - Manual RAID passthrough
 - Semi-hardcoded triggers (still for all disks though)
+
+![Triggers-Discovery](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers_cut.png)
+
+![Triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_triggers_cut.png)
 
 ## Installation
 As prerequisites you need `python3`, `smartmontools`, `sudo` and `zabbix-sender` packages. For testing, `zabbix-get` is also required.
@@ -62,15 +67,15 @@ visudo   # test sudoers configuration
 
 ## Testing
 ```bash
-zabbix_get -s 127.0.0.1 -k smartctl.discovery[get]
+zabbix_get -s 192.0.2.1 -k smartctl.discovery[get,"Example host"]
 ```
-Default operation mode. Displays json that server should get, detaches, then waits and sends data with zabbix-sender.
+Default operation mode. Displays json that server should get, detaches, then waits and sends data with zabbix-sender. `Example host` is your `Host name` field in zabbix.
 <br /><br />
 
 ```bash
-zabbix_get -s 127.0.0.1 -k smartctl.discovery[-v]
+zabbix_get -s 192.0.2.1 -k smartctl.discovery[getverb,"Example host"]
 ```
-Verbose mode. Same behaviour but does not detaches. Lists all items sent to zabbix-sender, also it is possible to see sender output in this mode.
+Verbose mode. Does not detaches or prints LLD. Lists all items sent to zabbix-sender, also it is possible to see sender output in this mode.
 <br /><br />
 
 Note: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`.
@@ -79,19 +84,23 @@ These scripts were tested to work with following configurations:
 - Centos 7 / Zabbix 2.4 / Python 3.4
 - Debian 8 / Zabbix 2.4 / Python 3.4
 - FreeBSD 10.1 / Zabbix 2.4 / Python 3.4
+- Windows XP / Zabbix 2.4 / Python 3.4
+- Windows 7 / Zabbix 2.4 / Python 3.4
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
+
+## Updating
+### 1.3:<br />
+Replace all old files with new ones and reupload the template.
 
 ## Issues
 - Zabbix web panel displays an error on json discovery, but apparently everything works fine
 - Windows version does not detaches currently, and data will only be gathered on second pass
 
 ## Planned features
-- Communication through pipes instead of arguments
-- Detaching in Windows script
 - Disk SMART capability auto-enabling
 
 ## Links
 - https://www.smartmontools.org
-- http://unlicense.org
+- https://unlicense.org
 - [The 5 SMART stats that actually predict hard drive failure](http://www.computerworld.com/article/2846009/the-5-smart-stats-that-actually-predict-hard-drive-failure.html)
 - [Disk and CPU temperature monitoring solution](https://github.com/nobodysu/zabbix-mini-IPMI)
