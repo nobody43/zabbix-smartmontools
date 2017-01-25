@@ -101,7 +101,7 @@
                         <formula/>
                         <conditions/>
                     </filter>
-                    <lifetime>0</lifetime>
+                    <lifetime>7</lifetime>
                     <description>By default, every 12 hours LLD will be gathered and 60 seconds after (configurable in script) trapper items will be sent to server.&#13;
 Note: at the moment windows items are sent only on second run (after discovery).</description>
                     <item_prototypes>
