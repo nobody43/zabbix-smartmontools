@@ -41,16 +41,15 @@ def replace_all(string, stopChars):
 
 if not diskListManual:   # if manual list is not provided
     allDisksStdout = subprocess.getoutput(ctlPath + ' --scan')   # scan the disks
-    diskListRe = re.findall(r'^/dev/(\w+)', allDisksStdout, re.M)   # and determine short device names
+    diskListRe = re.findall(r'^/dev/([^ ]+)', allDisksStdout, re.M)   # and determine short device names
 else:
     diskListRe = diskListManual   # or just use manually provided settings
+#print(diskListRe)
 
 for d in diskListRe:   # loop through all found drives
     ctlOut = subprocess.getoutput(ctlPath + ' -a /dev/' + d)
 
-    if diskListManual:
-        d = replace_all(d, stopChars)   # sanitize the item key
-        # ! 'd' is statically assigned !
+    d = replace_all(d, stopChars)   # sanitize the item key
     #print('disk:                         ', d)
 
     deviceName = d   # save device name before mode selection and after manual substitution
@@ -101,26 +100,37 @@ for d in diskListRe:   # loop through all found drives
 
     valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+\d{3}\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', ctlOut, re.M | re.I)   # catch id, name and value
     #print(d + ': valuesRe:\n', valuesRe)
-    for v in valuesRe:
-        if v[0] == '5':                         # semi-hardcoded values for triggers
-            jsonData.append({'{#DVALUE5}':d})
-        elif v[0] == '187':
-            jsonData.append({'{#DVALUE187}':d})
-        elif v[0] == '188':
-            jsonData.append({'{#DVALUE188}':d})
-        elif v[0] == '197':
-            jsonData.append({'{#DVALUE197}':d})
-        elif v[0] == '198':
-            jsonData.append({'{#DVALUE198}':d})
-        elif v[0] == '199':
-            jsonData.append({'{#DVALUE199}':d})
-        else:
-            jsonData.append({'{#DVALUE}':d, '{#SMARTID}':v[0], '{#SMARTNAME}':v[1]})   # all other possible values
 
-        senderData.append(hostname + ' smartctl.value[' + d + ',' + v[0] + '] ' + v[2])
+
+    if valuesRe:
+        jsonData.append({'{#DSMARTSTATUS}':d})
+        senderData.append(hostname + ' smartctl.info[' + d + ',SmartStatus] "PRESENT"')
+
+        for v in valuesRe:
+            if v[0] == '5':                         # semi-hardcoded values for triggers
+                jsonData.append({'{#DVALUE5}':d})
+            elif v[0] == '187':
+                jsonData.append({'{#DVALUE187}':d})
+            elif v[0] == '188':
+                jsonData.append({'{#DVALUE188}':d})
+            elif v[0] == '197':
+                jsonData.append({'{#DVALUE197}':d})
+            elif v[0] == '198':
+                jsonData.append({'{#DVALUE198}':d})
+            elif v[0] == '199':
+                jsonData.append({'{#DVALUE199}':d})
+            else:
+                jsonData.append({'{#DVALUE}':d, '{#SMARTID}':v[0], '{#SMARTNAME}':v[1]})   # all other possible values
+
+            senderData.append(hostname + ' smartctl.value[' + d + ',' + v[0] + '] ' + v[2])
+
+    else:
+        jsonData.append({'{#DSMARTSTATUS}':d})
+        senderData.append(hostname + ' smartctl.info[' + d + ',SmartStatus] "NO_SMART_VALUES"')
+
 
 if senderData:
-    senderData.append(hostname + ' smartctl.info[ConfigStatus] "OK"')   # signals that client host is configured
+    senderData.append(hostname + ' smartctl.info[ConfigStatus] "CONFIGURED"')   # signals that client host is configured
 else:
     if ctlOut.find('ermission denied') != -1 or ctlOut.find('missing admin rights') != -1:
         senderData.append(hostname + ' smartctl.info[ConfigStatus] "MISSINGRIGHTS"')

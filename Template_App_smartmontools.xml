@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2017-01-24T20:11:49Z</date>
+    <date>2017-02-28T18:17:40Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -407,6 +407,49 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
+                            <name>{#DSMARTSTATUS}: SMART status</name>
+                            <type>2</type>
+                            <snmp_community/>
+                            <multiplier>0</multiplier>
+                            <snmp_oid/>
+                            <key>smartctl.info[{#DSMARTSTATUS},SmartStatus]</key>
+                            <delay>0</delay>
+                            <history>90</history>
+                            <trends>365</trends>
+                            <status>0</status>
+                            <value_type>4</value_type>
+                            <allowed_hosts/>
+                            <units/>
+                            <delta>0</delta>
+                            <snmpv3_contextname/>
+                            <snmpv3_securityname/>
+                            <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                            <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                            <snmpv3_authpassphrase/>
+                            <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                            <snmpv3_privpassphrase/>
+                            <formula>1</formula>
+                            <delay_flex/>
+                            <params/>
+                            <ipmi_sensor/>
+                            <data_type>0</data_type>
+                            <authtype>0</authtype>
+                            <username/>
+                            <password/>
+                            <publickey/>
+                            <privatekey/>
+                            <port/>
+                            <description/>
+                            <inventory_link>0</inventory_link>
+                            <applications>
+                                <application>
+                                    <name>SMART info</name>
+                                </application>
+                            </applications>
+                            <valuemap/>
+                            <logtimefmt/>
+                        </item_prototype>
+                        <item_prototype>
                             <name>{#DVALUE5}: [5]Reallocated_Sector_Count</name>
                             <type>2</type>
                             <snmp_community/>
@@ -710,13 +753,21 @@ Note: at the moment windows items are sent only on second run (after discovery).
                     </item_prototypes>
                     <trigger_prototypes>
                         <trigger_prototype>
-                            <expression>{Template App smartmontools:smartctl.info[{#DFIRMWARE},firmware].diff(0)}&gt;0 and&#13;
-{Template App smartmontools:smartctl.info[{#DSERIAL},serial].diff(0)}&gt;1</expression>
+                            <expression>{Template App smartmontools:smartctl.info[{#DFIRMWARE},firmware].diff(0)}&gt;0</expression>
                             <name>{#DFIRMWARE}: Firmware version had changed on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
                             <priority>1</priority>
-                            <description>Trigger only if firmware is changes but serial is NOT (means that drive is not repalced).</description>
+                            <description/>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DSMARTSTATUS},SmartStatus].str(NO_SMART_VALUES)}=1</expression>
+                            <name>{#DHAVESMART}: no smart values were discovered</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>1</priority>
+                            <description/>
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
@@ -813,7 +864,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
     <triggers>
         <trigger>
             <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(NODISKS)}=1</expression>
-            <name>App smartmontools: no disks were found for SMART test</name>
+            <name>App smartmontools: no disks were found for SMART test on {HOST.NAME}</name>
             <url/>
             <status>0</status>
             <priority>1</priority>
@@ -823,7 +874,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
         </trigger>
         <trigger>
             <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(MISSINGRIGHTS)}=1</expression>
-            <name>App smartmontools: smartctl does not have sudo/admin access</name>
+            <name>App smartmontools: smartctl does not have sudo/admin access on {HOST.NAME}</name>
             <url/>
             <status>0</status>
             <priority>1</priority>
@@ -833,7 +884,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
         </trigger>
         <trigger>
             <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(NOCMD)}=1</expression>
-            <name>App smartmontools: smartctl was not found in PATH or manually</name>
+            <name>App smartmontools: smartctl was not found in PATH or manually on {HOST.NAME}</name>
             <url/>
             <status>0</status>
             <priority>1</priority>
@@ -843,7 +894,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
         </trigger>
         <trigger>
             <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(ERROR)}=1</expression>
-            <name>App smartmontools: something went wrong</name>
+            <name>App smartmontools: something went wrong on {HOST.NAME}</name>
             <url/>
             <status>0</status>
             <priority>1</priority>
@@ -852,12 +903,12 @@ Note: at the moment windows items are sent only on second run (after discovery).
             <dependencies/>
         </trigger>
         <trigger>
-            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].nodata(168h)}=1</expression>
-            <name>App smartmontools: template is assigned, but no data is recieved</name>
+            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].nodata(30d)}=1</expression>
+            <name>App smartmontools: template is assigned, but no data is recieved on {HOST.NAME}</name>
             <url/>
             <status>0</status>
             <priority>1</priority>
-            <description>If template is assigned to the host, but no data is gathered within one week.</description>
+            <description>If template is assigned to the host, but no data is gathered within 30 days.</description>
             <type>0</type>
             <dependencies/>
         </trigger>
