@@ -89,7 +89,7 @@ These scripts were tested to work with following configurations:
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
 ## Updating
-### 1.3:<br />
+### from any to 1.3 or 1.4:<br />
 Replace all old files with new ones and reupload the template.
 
 ## Issues
@@ -97,6 +97,8 @@ Replace all old files with new ones and reupload the template.
 - Windows version does not detaches currently, and data will only be gathered on second pass
 
 ## Planned features
+- SSD life monitoring, TRIM capability
+- ERC / TLER / CCTL is-enabled check
 - Disk SMART capability auto-enabling
 
 ## Links
