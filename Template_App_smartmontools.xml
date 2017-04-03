@@ -77,7 +77,7 @@
                     <snmp_community/>
                     <snmp_oid/>
                     <key>smartctl.discovery[get,{HOST.HOST}]</key>
-                    <delay>43200</delay>
+                    <delay>21600</delay>
                     <status>0</status>
                     <allowed_hosts/>
                     <snmpv3_contextname/>
@@ -102,7 +102,7 @@
                         <conditions/>
                     </filter>
                     <lifetime>7</lifetime>
-                    <description>By default, every 12 hours LLD will be gathered and 60 seconds after (configurable in script) trapper items will be sent to server.&#13;
+                    <description>By default, every 6 hours LLD will be gathered and 60 seconds after (configurable in script) trapper items will be sent to server.&#13;
 Note: at the moment windows items are sent only on second run (after discovery).</description>
                     <item_prototypes>
                         <item_prototype>
@@ -763,7 +763,7 @@ Note: at the moment windows items are sent only on second run (after discovery).
                         </trigger_prototype>
                         <trigger_prototype>
                             <expression>{Template App smartmontools:smartctl.info[{#DSMARTSTATUS},SmartStatus].str(NO_SMART_VALUES)}=1</expression>
-                            <name>{#DHAVESMART}: no smart values were discovered</name>
+                            <name>{#DSMARTSTATUS}: no smart values were discovered</name>
                             <url/>
                             <status>0</status>
                             <priority>1</priority>
