@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2017-02-28T18:17:40Z</date>
+    <date>2017-04-21T17:41:14Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -119,6 +119,49 @@ Note: at the moment windows items are sent only on second run (after discovery).
                             <value_type>3</value_type>
                             <allowed_hosts/>
                             <units>B</units>
+                            <delta>0</delta>
+                            <snmpv3_contextname/>
+                            <snmpv3_securityname/>
+                            <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                            <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                            <snmpv3_authpassphrase/>
+                            <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                            <snmpv3_privpassphrase/>
+                            <formula>1</formula>
+                            <delay_flex/>
+                            <params/>
+                            <ipmi_sensor/>
+                            <data_type>0</data_type>
+                            <authtype>0</authtype>
+                            <username/>
+                            <password/>
+                            <publickey/>
+                            <privatekey/>
+                            <port/>
+                            <description/>
+                            <inventory_link>0</inventory_link>
+                            <applications>
+                                <application>
+                                    <name>SMART info</name>
+                                </application>
+                            </applications>
+                            <valuemap/>
+                            <logtimefmt/>
+                        </item_prototype>
+                        <item_prototype>
+                            <name>{#DDRIVESTATUS}: Drive status</name>
+                            <type>2</type>
+                            <snmp_community/>
+                            <multiplier>0</multiplier>
+                            <snmp_oid/>
+                            <key>smartctl.info[{#DDRIVESTATUS},DriveStatus]</key>
+                            <delay>0</delay>
+                            <history>90</history>
+                            <trends>365</trends>
+                            <status>0</status>
+                            <value_type>4</value_type>
+                            <allowed_hosts/>
+                            <units/>
                             <delta>0</delta>
                             <snmpv3_contextname/>
                             <snmpv3_securityname/>
@@ -753,17 +796,99 @@ Note: at the moment windows items are sent only on second run (after discovery).
                     </item_prototypes>
                     <trigger_prototypes>
                         <trigger_prototype>
-                            <expression>{Template App smartmontools:smartctl.info[{#DFIRMWARE},firmware].diff(0)}&gt;0</expression>
-                            <name>{#DFIRMWARE}: Firmware version had changed on {HOST.NAME}</name>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_32)}=1</expression>
+                            <name>{#DDRIVESTATUS}: Attributes have been &lt;= threshold at some time in the past</name>
                             <url/>
                             <status>0</status>
                             <priority>1</priority>
+                            <description>man smartctl:&#13;
+Bit 5: SMART  status check returned &quot;DISK OK&quot; but we found that some (usage or prefail) Attributes have been &lt;= threshold at some time in the past.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_1)}=1</expression>
+                            <name>{#DDRIVESTATUS}: Command line did not parse</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>1</priority>
+                            <description>man smartctl:&#13;
+Bit 0: Command line did not parse.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_2)}=1</expression>
+                            <name>{#DDRIVESTATUS}: Device open failed</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>1</priority>
+                            <description>man smartctl:&#13;
+Bit 1: Device open failed, device did not return an IDENTIFY DEVICE structure, or device is in a low-power mode (see ´-n´ option above).&#13;
+(No such disk, permission denied, etc)</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_8)}=1</expression>
+                            <name>{#DDRIVESTATUS}: SMART status check returned &quot;DISK FAILING&quot;</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>4</priority>
+                            <description>man smartctl:&#13;
+Bit 3: SMART status check returned &quot;DISK FAILING&quot;.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_4)}=1</expression>
+                            <name>{#DDRIVESTATUS}: Some SMART or other ATA command to the disk failed</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>1</priority>
+                            <description>man smartctl:&#13;
+Bit 2: Some SMART or other ATA command to the disk failed,  or  there  was  a  checksum error in a SMART data structure (see ´-b´ option above).&#13;
+Common issue for disks behind a RAID controller.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_64)}=1</expression>
+                            <name>{#DDRIVESTATUS}: The device error log contains records of errors</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>3</priority>
+                            <description>man smartctl:&#13;
+Bit 6: The device error log contains records of errors.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_128)}=1</expression>
+                            <name>{#DDRIVESTATUS}: The device self-test log contains records of errors</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>3</priority>
+                            <description>man smartctl:&#13;
+Bit 7: The device self-test log contains records of errors. [ATA  only] Failed  self-tests outdated by a newer successful extended self-test are ignored.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(UNKNOWN_ERROR_ON_PROCESSING)}=1</expression>
+                            <name>{#DDRIVESTATUS}: Unknown error while processing the disk</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>2</priority>
                             <description/>
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
-                            <expression>{Template App smartmontools:smartctl.info[{#DSMARTSTATUS},SmartStatus].str(NO_SMART_VALUES)}=1</expression>
-                            <name>{#DSMARTSTATUS}: no smart values were discovered</name>
+                            <expression>{Template App smartmontools:smartctl.info[{#DDRIVESTATUS},DriveStatus].str(ERR_CODE_16)}=1</expression>
+                            <name>{#DDRIVESTATUS}: We found prefail Attributes &lt;= threshold</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>2</priority>
+                            <description>man smartctl:&#13;
+Bit 4: We found prefail Attributes &lt;= threshold.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DFIRMWARE},firmware].diff(0)}&gt;0</expression>
+                            <name>{#DFIRMWARE}: Firmware version had changed on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
                             <priority>1</priority>
@@ -791,6 +916,15 @@ Note: at the moment windows items are sent only on second run (after discovery).
                         <trigger_prototype>
                             <expression>{Template App smartmontools:smartctl.info[{#DSERIAL},serial].diff(0)}&gt;0</expression>
                             <name>{#DSERIAL}: Serial number had changed on {HOST.NAME}</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>1</priority>
+                            <description/>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.info[{#DSMARTSTATUS},SmartStatus].str(NO_SMART_VALUES)}=1</expression>
+                            <name>{#DSMARTSTATUS}: no smart values were discovered</name>
                             <url/>
                             <status>0</status>
                             <priority>1</priority>
@@ -869,16 +1003,6 @@ Note: at the moment windows items are sent only on second run (after discovery).
             <status>0</status>
             <priority>1</priority>
             <description>smartmontools requires administrative permissions.</description>
-            <type>0</type>
-            <dependencies/>
-        </trigger>
-        <trigger>
-            <expression>{Template App smartmontools:smartctl.info[ConfigStatus].str(MISSINGRIGHTS)}=1</expression>
-            <name>App smartmontools: smartctl does not have sudo/admin access on {HOST.NAME}</name>
-            <url/>
-            <status>0</status>
-            <priority>1</priority>
-            <description/>
             <type>0</type>
             <dependencies/>
         </trigger>
