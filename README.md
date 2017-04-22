@@ -3,6 +3,7 @@
 Cross-platform SMART monitoring scripts with two display modes: [device](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-device-example.png?raw=true) and [serial](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-serial-example.png?raw=true). LLD discovers and sends data in one pass, using minimal number of utilities. Supports any SMART name and displays it as is.
 
 #### Advantages
+- Utilises smartctl error return codes
 - Full Low-Level Discovery: there is no need to add any SMART items
 - Efficient: no unnecessary processes are spawned
 - Bulk items upload with zabbix-sender
@@ -89,7 +90,7 @@ These scripts were tested to work with following configurations:
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
 ## Updating
-### from any to 1.3 or 1.4:<br />
+### from any to 1.3, 1.4 or 1.5:<br />
 Replace all old files with new ones and reupload the template.
 
 ## Issues
