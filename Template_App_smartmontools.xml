@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2017-04-21T17:41:14Z</date>
+    <date>2017-05-24T19:40:37Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -977,10 +977,19 @@ Bit 4: We found prefail Attributes &lt;= threshold.</description>
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
-                            <expression>{Template App smartmontools:smartctl.value[{#DVALUE199},199].last()}&gt;10</expression>
-                            <name>{#DVALUE199}: [199]UDMA_CRC_Error_Count is more than 10 on {HOST.NAME}</name>
+                            <expression>{Template App smartmontools:smartctl.value[{#DVALUE199},199].delta(7d)}&gt;0</expression>
+                            <name>{#DVALUE199}: [199]UDMA_CRC_Error_Count has changed in past 7 days on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
+                            <priority>2</priority>
+                            <description>This means you probably need to check your cables and device ports.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template App smartmontools:smartctl.value[{#DVALUE199},199].last()}&gt;0</expression>
+                            <name>{#DVALUE199}: [199]UDMA_CRC_Error_Count is more than 0 on {HOST.NAME}</name>
+                            <url/>
+                            <status>1</status>
                             <priority>2</priority>
                             <description>This means you probably need to check your cables and device ports.</description>
                             <type>0</type>
