@@ -79,23 +79,23 @@ zabbix_get -s 192.0.2.1 -k smartctl.discovery[getverb,"Example host"]
 Verbose mode. Does not detaches or prints LLD. Lists all items sent to zabbix-sender, also it is possible to see sender output in this mode.
 <br /><br />
 
-Note: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`.
+Note: before scripts would work, zabbix server must first discover available items. It is done in 6 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`. In this case update value must not be less than 60 seconds.
 
 These scripts were tested to work with following configurations:
 - Centos 7 / Zabbix 2.4 / Python 3.4
-- Debian 8 / Zabbix 2.4 / Python 3.4
+- Debian 8 / ZS (2.4, 3.4) / ZA (2.4, 3.0, 3.2, 3.4) / Python 3.4
 - FreeBSD 10.1 / Zabbix 2.4 / Python 3.4
 - Windows XP / Zabbix 2.4 / Python 3.4
-- Windows 7 / Zabbix 2.4 / Python 3.4
+- Windows 7 / ZS (2.4, 3.4) / ZA (2.4, 3.0, 3.2, 3.4) / Python 3.4
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
 ## Updating
-### from any to 1.3, 1.4 or 1.5:<br />
+### from any to 1.3, 1.4, 1.5, 1.5.1:<br />
 Replace all old files with new ones and reupload the template.
 
 ## Issues
 - Zabbix web panel displays an error on json discovery, but apparently everything works fine
-- Windows version does not detaches currently, and data will only be gathered on second pass
+- Windows version does not detaches, and data will only be gathered on second pass (probably permanent workaround)
 
 ## Planned features
 - SSD life monitoring, TRIM capability

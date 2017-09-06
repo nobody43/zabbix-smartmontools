@@ -3,6 +3,7 @@
 ## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools
 
 mode = 'device'   # 'device' or 'serial' as primary identifier in zabbix item's name
+                  # 'serial' is much safer for multi-disk system
 
 ctlPath = r'smartctl'
 #ctlPath = r'C:\Program Files\smartmontools\bin\smartctl.exe'   # if smartctl isn't in PATH
@@ -22,6 +23,7 @@ senderPath = r'zabbix_sender'                                       # Linux, BSD
 #senderPath = r'C:\zabbix-agent\bin\win32\zabbix_sender.exe'        # Win
 
 timeout = '60'   # how long the script must wait between LLD and sending, increase if data received late (does not affect windows)
+                 # this setting MUST be lower than 'Update interval' in discovery rule
 
 # manually provide disk list or RAID configuration if needed
 diskListManual = []
@@ -36,6 +38,12 @@ import subprocess
 import re
 from json import dumps
 from shlex import split
+
+# intended for 'python3' binary but can be changed in special cases, alongside with shebang
+if sys.platform != 'win32':   # if not windows
+    pythonCmd = 'python3'
+else:
+    pythonCmd = 'python.exe'
 
 hostname = '"' + sys.argv[2] + '"'
 
@@ -194,21 +202,16 @@ else:
 
 senderDataNStr = '\n'.join(senderData)   # items for zabbix sender separated by newlines
 
-if sys.platform != 'win32':   # if not windows
-    pythonCmd = 'python3'
-else:
-    pythonCmd = 'python.exe'
-
 # pass senderDataNStr to smartctl-send.py:
 if sys.argv[1] == 'get':
     print(dumps({"data": jsonData}, indent=4))   # print data gathered for LLD
 
-    subprocess.Popen([pythonCmd, senderPyPath, 'get', agentConf, senderPath, timeout, senderDataNStr], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)   # spawn new process and regain shell control immediately (only *nix, windows waits)
+    subprocess.Popen([pythonCmd, senderPyPath, 'get', agentConf, senderPath, timeout, senderDataNStr], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)   # spawn new process and regain shell control immediately (on Win 'smartctl-send.py' will not wait)
 
 elif sys.argv[1] == 'getverb':
-    subprocess.Popen([pythonCmd, senderPyPath, 'getverb', agentConf, senderPath, timeout, senderDataNStr], stdin=subprocess.PIPE)   # do not detach if in verbose mode, also skips timeout in smartctl-send.py
+    subprocess.Popen([pythonCmd, senderPyPath, 'getverb', agentConf, senderPath, timeout, senderDataNStr], stdin=subprocess.PIPE)   # do not detach if in verbose mode, also skips timeout in 'smartctl-send.py'
 
 else:
     print(sys.argv[0] + " : Not supported. Use 'get' or 'getverb'.")
-sys.exit(1)
+    #sys.exit(1)  # it's safer to just disable error codes after 3.4 changes
 
