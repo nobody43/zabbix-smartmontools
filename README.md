@@ -84,6 +84,7 @@ Note: before scripts would work, zabbix server must first discover available ite
 These scripts were tested to work with following configurations:
 - Centos 7 / Zabbix 2.4 / Python 3.4
 - Debian 8 / ZS (2.4, 3.4) / ZA (2.4, 3.0, 3.2, 3.4) / Python 3.4
+- Ubuntu 17.10 / Zabbix 3.0 / Python 3.6
 - FreeBSD 10.1 / Zabbix 2.4 / Python 3.4
 - Windows XP / Zabbix 2.4 / Python 3.4
 - Windows 7 / ZS (2.4, 3.4) / ZA (2.4, 3.0, 3.2, 3.4) / Python 3.4
