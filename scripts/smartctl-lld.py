@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
 
-## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools
+## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools ##
 
-mode = 'device'   # 'device' or 'serial' as primary identifier in zabbix item's name
-                  # 'serial' is much safer for multi-disk system
+mode = 'device'        # 'device' or 'serial' as primary identifier in zabbix item's name
+                       # 'serial' is preferred for multi-disk system
+
+skipDuplicates = 'yes' # skip duplicate disk outputs. 'DriveStatus' json will not be skipped
+                       # determined by disk serial, model, capacity and firmware (serial + at least one of others)
 
 ctlPath = r'smartctl'
-#ctlPath = r'C:\Program Files\smartmontools\bin\smartctl.exe'   # if smartctl isn't in PATH
+#ctlPath = r'C:\Program Files\smartmontools\bin\smartctl.exe'        # if smartctl isn't in PATH
 #ctlPath = r'/usr/local/sbin/smartctl'
 
 # path to second send script
-senderPyPath = r'/etc/zabbix/scripts/smartctl-send.py'              # Linux
-#senderPyPath = r'C:\zabbix-agent\scripts\smartctl-send.py'         # Win
-#senderPyPath = r'/usr/local/etc/zabbix/scripts/smartctl-send.py'   # BSD
+senderPyPath = r'/etc/zabbix/scripts/sender_wrapper.py'              # Linux
+#senderPyPath = r'C:\zabbix-agent\scripts\sender_wrapper.py'         # Win
+#senderPyPath = r'/usr/local/etc/zabbix/scripts/sender_wrapper.py'   # BSD
 
 # path to zabbix agent configuration file
-agentConf = r'/etc/zabbix/zabbix_agentd.conf'                       # Linux
-#agentConf = r'C:\zabbix_agentd.conf'                               # Win
-#agentConf = r'/usr/local/etc/zabbix24/zabbix_agentd.conf'          # BSD
+agentConf = r'/etc/zabbix/zabbix_agentd.conf'                        # Linux
+#agentConf = r'C:\zabbix_agentd.conf'                                # Win
+#agentConf = r'/usr/local/etc/zabbix3/zabbix_agentd.conf'            # BSD
 
-senderPath = r'zabbix_sender'                                       # Linux, BSD
-#senderPath = r'C:\zabbix-agent\bin\win32\zabbix_sender.exe'        # Win
+senderPath = r'zabbix_sender'                                        # Linux, BSD
+#senderPath = r'C:\zabbix-agent\bin\win32\zabbix_sender.exe'         # Win
 
-timeout = '60'   # how long the script must wait between LLD and sending, increase if data received late (does not affect windows)
+timeout = '80'   # how long the script must wait between LLD and sending, increase if data received late (does not affect windows)
                  # this setting MUST be lower than 'Update interval' in discovery rule
 
 # manually provide disk list or RAID configuration if needed
@@ -36,64 +39,144 @@ diskListManual = []
 import sys
 import subprocess
 import re
-from json import dumps
+import ntpath
 from shlex import split
+from sender_wrapper import (readConfig, processData, replaceStr, fail_ifNot_Py3)
 
-# intended for 'python3' binary but can be changed in special cases, alongside with shebang
-if sys.platform != 'win32':   # if not windows
-    pythonCmd = 'python3'
-else:
-    pythonCmd = 'python.exe'
 
-hostname = '"' + sys.argv[2] + '"'
-
-jsonData = []
-senderData = []
-
-stopChars = [('/dev/', ''), (' -d', ''), (',', ''), ('[', ' '), (']', ' '), ('+', '_'), ('  ', ' '), ('/', '_'), ('~', '_'), ('`', '_'), ('@', '_'), ('#', '_'), ('$', '_'), ('%', '_'), ('^', '_'), ('&', '_'), ('*', '_'), ('(', '_'), (')', '_'), ('{', '_'), ('}', '_'), ('=', '_'), (':', '_'), (';', '_'), ('"', '_'), ('?', '_'), ('<', '_'), ('>', '_'), (' ', '_')]
-
-def replace_all(string, stopChars):
-    for i, j in stopChars:
-        string = string.replace(i, j)
-    return string
-
-allDisksStdout = ''
-configStatusError = ''
-if not diskListManual:   # if manual list is not provided
+def scanDisks():
+    '''Determines available disks. Can be skipped.'''
     try:
-        allDisksStdout = subprocess.check_output([ctlPath, '--scan'], universal_newlines=True)   # scan the disks
+        p = subprocess.check_output([ctlPath, '--scan'], universal_newlines=True)   # scan the disks
+        error = ''
     except OSError as e:
-        if e.args[0] == 2:
-            configStatusError = 'SCAN_OS_NOCMD'
-        else:
-            configStatusError = 'SCAN_OS_ERROR'
-    except:
-        configStatusError = 'SCAN_UNKNOWN_ERROR'
+        p = ''
 
+        if e.args[0] == 2:
+            error = 'SCAN_OS_NOCMD'
+        else:
+            error = 'SCAN_OS_ERROR'
+    except Exception as e:
+        try:   # extra safe
+            p = e.output
+        except:
+            p = ''
+
+        error = 'SCAN_UNKNOWN_ERROR'
         if sys.argv[1] == 'getverb':
             raise
 
-    diskListRe = re.findall(r'^(/dev/[^ ]+)', allDisksStdout, re.M)   # and determine short device names
-else:
-    diskListRe = diskListManual   # or just use manually provided settings
-#print(diskListRe)
+    disks = re.findall(r'^(/dev/[^#]+)', p, re.M)   # determine full device names and types
+
+    return error, disks
 
 
-for d in diskListRe:   # loop through all found drives
-    deviceNameOrig = d
-    d = replace_all(d, stopChars)   # sanitize the item key
-    deviceName = d   # save device name before mode selection and after manual substitution
-    #print('disk:                         ', d)
+def getSmartSAS(p, dR):
+    sender = []
+    json = []
+
+    # SAS info
+    revisionRe = re.search(r'^Revision:\s+(.+)$|^Version:\s+(.+)$', p, re.M | re.I)
+    if revisionRe:
+        if revisionRe.group(1):
+            revisionResult = revisionRe.group(1)
+        elif revisionRe.group(2):
+            revisionResult = revisionRe.group(2)
+        else:
+            revisionResult = 'UNKNOWN'
+
+        sender.append('%s smartctl.info[%s,revision] "%s"' % (host, dR, revisionResult))
+
+    complianceRe = re.search(r'^Compliance:\s+(.+)$', p, re.M | re.I)
+    if complianceRe:
+        sender.append('%s smartctl.info[%s,compliance] "%s"' % (host, dR, complianceRe.group(1)))
+
+    manufacturedRe = re.search(r'^Manufactured in week (\d+) of year (\d+)', p, re.M | re.I)
+    if manufacturedRe:
+        sender.append('%s smartctl.info[%s,manufacturedYear] "%s"' % (host, dR, manufacturedRe.group(2)))
+
+    # SAS values
+    loadUnloadRe = re.search(r'^Accumulated load-unload cycles:\s+(\d+)', p, re.M | re.I)
+    if loadUnloadRe:
+        sender.append('%s smartctl.value[%s,loadUnload] "%s"' % (host, dR, loadUnloadRe.group(1)))
+ 
+        loadUnloadMaxRe = re.search(r'^Specified load-unload count over device lifetime:\s+(\d+)', p, re.M | re.I)
+        if loadUnloadMaxRe:
+            sender.append('%s smartctl.value[%s,loadUnloadMax] "%s"' % (host, dR, loadUnloadMaxRe.group(1)))
+
+    startStopRe = re.search(r'^Accumulated start-stop cycles:\s+(\d+)|^Current start stop count:\s+(\d+)', p, re.M | re.I)
+    if startStopRe:
+        if startStopRe.group(1):
+            startStopResult = startStopRe.group(1)
+        elif startStopRe.group(2):
+            startStopResult = startStopRe.group(2)
+        else:
+            startStopResult = 'UNKNOWN'
+
+        sender.append('%s smartctl.value[%s,startStop] "%s"' % (host, dR, startStopResult))
+
+        startStopMaxRe = re.search(r'^Recommended maximum start stop count:\s+(\d+)|^Specified cycle count over device lifetime:\s+(\d+)', p, re.M | re.I)
+        if startStopMaxRe:
+            if startStopMaxRe.group(1):
+                startStopMaxResult = startStopMaxRe.group(1)
+            elif startStopMaxRe.group(2):
+                startStopMaxResult = startStopMaxRe.group(2)
+            else:
+                startStopMaxResult = 'UNKNOWN'
+
+            sender.append('%s smartctl.value[%s,startStopMax] "%s"' % (host, dR, startStopMaxResult))
+
+    defectsRe = re.search(r'^Elements in grown defect list:\s+(\d+)', p, re.M | re.I)
+    if defectsRe:
+        sender.append('%s smartctl.value[%s,defects] "%s"' % (host, dR, defectsRe.group(1)))
+
+    poweredHoursRe = re.search(r'^number of hours powered up \=\s+(\d+)', p, re.M | re.I)
+    if poweredHoursRe:
+        sender.append('%s smartctl.value[%s,poweredHours] "%s"' % (host, dR, poweredHoursRe.group(1)))
+
+    nonMediumErrorsRe = re.search(r'^Non-medium error count:\s+(\d+)', p, re.M | re.I)
+    if nonMediumErrorsRe:
+        sender.append('%s smartctl.value[%s,nonMediumErrors] "%s"' % (host, dR, nonMediumErrorsRe.group(1)))
+
+    if sender:
+        error = False
+    else:
+        error = True
+
+    json.append({'{#DISKIDSAS}':dR})
+
+    return error, sender, json
+
+
+def getSmart(d):
+    #print("d:\t'%s'" % d)
+    d = d.strip()
+    if not diskListManual:   # do not replace manual 'scsi'
+        d = d.replace('-d scsi', '-d auto')   # prevent empty results
+
+    #print("dS:\t'%s'" % d)
+    dR = replaceStr(d)   # sanitize the item key
+    dOrig = dR   # save original sanitized device name
+
+    #print("dR:\t'%s'" % dR)
+    #print("dOrig:\t'%s'" % dOrig)
+
+    sender = []
+    json = []
+    driveStatus = None
+    serial = None      # tracking duplicates
+    driveHeader = []   # tracking duplicates
 
     try:
-        diskProc = subprocess.check_output([ctlPath, '-a'] + split(deviceNameOrig), universal_newlines=True)   # take string from 'diskListRe', make arguments from it and append to existing command, then run it
+        p = subprocess.check_output([ctlPath, '-a'] + split(d), universal_newlines=True)   # take string from 'diskListRe', make arguments from it and append to existing command, then run it
     except OSError as e:
         if e.args[0] == 2:
-            configStatusError = 'D_OS_NOCMD'
-            break
+            fatalError = 'D_OS_NOCMD'
         else:
-            configStatusError = 'D_OS_ERROR'
-            break
+            fatalError = 'D_OS_ERROR'
+
+        return fatalError, sender, json, (serial, driveHeader), (dR, dOrig)
+
     except subprocess.CalledProcessError as e:   # handle process-specific errors
         ''' see 'man smartctl' for more information
         Bit 0 = Code 1
@@ -105,113 +188,219 @@ for d in diskListRe:   # loop through all found drives
         Bit 6 = Code 64
         Bit 7 = Code 128
         '''
-        diskProc = e.output   # substitude output even on error, so it can be processed further
-        senderData.append(hostname + ' smartctl.info[' + d + ',DriveStatus] "ERR_CODE_' + str(e.args[0]) + '"')
+        p = e.output   # substitude output even on error, so it can be processed further
+        driveStatus = 'ERR_CODE_%s' % (str(e.args[0]))
+
+        m = "SMART support is: Unavailable - Packet Interface Devices [this device: CD/DVD] don't support ATA SMART"
+        if m in p:
+            sender.append('%s smartctl.info[%s,DriveStatus] "CD_DVD_DRIVE"' % (host, dR))
+            return None, sender, json, (serial, driveHeader), (dR, dOrig)
 
         if e.args[0] == 1 or e.args[0] == 2:
-            continue   # continue to the next disk on fatal error
+            sender.append('%s smartctl.info[%s,DriveStatus] "%s"' % (host, dR, driveStatus))   # duplicate follows
+            return None, sender, json, (serial, driveHeader), (dR, dOrig)
+
     except:
-        diskProc = e.output
-        senderData.append(hostname + ' smartctl.info[' + d + ',DriveStatus] "UNKNOWN_ERROR_ON_PROCESSING"')
+        p = e.output
+        driveStatus = 'UNKNOWN_ERROR_ON_PROCESSING'
 
         if sys.argv[1] == 'getverb':
             raise
     else:
-        senderData.append(hostname + ' smartctl.info[' + d + ',DriveStatus] "PROCESSED"')   # no trigger assigned, but its needed as a fallback value
-    finally:
-        jsonData.append({'{#DDRIVESTATUS}':d})   # it will fire even on OSError (no senderData)
+        driveStatus = 'PROCESSED'   # no trigger assigned, but its needed as a fallback value
 
-    serialRe = re.search(r'^Serial Number:\s+(.+)$', diskProc, re.M | re.I)
-    #print(d + ': serialRe.group(1):      ' + serialRe.group(1))
+    # Determine disk identifier
+    serialRe = re.search(r'^Serial Number:\s+(.+)$', p, re.M | re.I)
     if serialRe:
         if mode == 'serial':
-            d = replace_all(serialRe.group(1), stopChars)   # in 'serial' mode, if serial number is found it will be used as main identifier, also sanitize it
+            dR = replaceStr(serialRe.group(1))   # in 'serial' mode, if serial number is found it will be used as main identifier, also sanitize it
             # ! 'd' becomes serial !
 
-        jsonData.append({'{#DSERIAL}':d})
-        senderData.append(hostname + ' smartctl.info[' + d + ',serial] "' + serialRe.group(1) + '"')
+        sender.append('%s smartctl.info[%s,serial] "%s"' % (host, dR, serialRe.group(1)))
+        serial = serialRe.group(1)   # tracking duplicates
 
-    jsonData.append({'{#DNAME}':d})
-    senderData.append(hostname + ' smartctl.info[' + d + ',device] "' + deviceName + '"')
+    # Process disk errors when disk ID is determined
+    if driveStatus:
+        sender.append('%s smartctl.info[%s,DriveStatus] "%s"' % (host, dR, driveStatus))
 
-    modelRe = re.search(r'^Device Model:\s+(.+)$', diskProc, re.M | re.I)
-    #print(d + ': modelRe.group(1):       ' + modelRe.group(1))
+    # Adding main LLD
+    json.append({'{#DISKID}':dR})
+    sender.append('%s smartctl.info[%s,device] "%s"' % (host, dR, dOrig))
+
+    # SATA and SAS info
+    familyRe = re.search(r'^Model Family:\s+(.+)$', p, re.M | re.I)
+    if familyRe:
+        sender.append('%s smartctl.info[%s,family] "%s"' % (host, dR, familyRe.group(1)))
+
+    modelRe = re.search(r'^Device Model:\s+(.+)$|^Device:\s+(.+)$|^Product:\s+(.+)$', p, re.M | re.I)
     if modelRe:
-        jsonData.append({'{#DMODEL}':d})
-        senderData.append(hostname + ' smartctl.info[' + d + ',model] "' + modelRe.group(1) + '"')
+        if modelRe.group(1):
+            modelResult = modelRe.group(1)
+        elif modelRe.group(2):
+            modelResult = modelRe.group(2)
+        elif modelRe.group(3):
+            modelResult = modelRe.group(3)
+        else:
+            modelResult = 'UNKNOWN'
 
-    firmwareRe = re.search(r'^Firmware Version:\s+(.+)$', diskProc, re.M | re.I)
-    #print(d + ': firmwareRe.group(1):    ' + firmwareRe.group(1))
-    if firmwareRe:
-        jsonData.append({'{#DFIRMWARE}':d})
-        senderData.append(hostname + ' smartctl.info[' + d + ',firmware] "' + firmwareRe.group(1) + '"')
+        sender.append('%s smartctl.info[%s,model] "%s"' % (host, dR, modelResult))
+        driveHeader.append(modelRe.group(1))   # tracking duplicates
 
-    capacityRe = re.search(r'User Capacity:\s+(.+)bytes', diskProc, re.I)
+    capacityRe = re.search(r'User Capacity:\s+(.+)bytes', p, re.I)
     if capacityRe:
-        capacityValue = re.sub('\D', '', capacityRe.group(1))   # substitute all but numbers
-        #print(d + ': capacityValue:          ' + capacityValue)
-        jsonData.append({'{#DCAPACITY}':d})
-        senderData.append(hostname + ' smartctl.info[' + d + ',capacity] "' + capacityValue + '"')
+        capacityValue = re.sub('\s|\,', '', capacityRe.group(1))
+        sender.append('%s smartctl.info[%s,capacity] "%s"' % (host, dR, capacityValue))
+        driveHeader.append(capacityValue)   # tracking duplicates
 
-    rpmRe = re.search(r'^Rotation Rate:\s+(\d+)\s+rpm$', diskProc, re.M | re.I)
-    #print(d + ': rpmRe.group(1):         ' + rpmRe.group(1))
-    if rpmRe:
-        jsonData.append({'{#DRPM}':d})
-        senderData.append(hostname + ' smartctl.info[' + d + ',rpm] "' + rpmRe.group(1) + '"')
-
-    selftestRe = re.search(r'^SMART overall-health self-assessment test result:\s+(.+)$', diskProc, re.M | re.I)
-    #print(d + ': selftestRe.group(1):    ' + selftestRe.group(1))
+    selftestRe = re.search(r'^SMART overall-health self-assessment test result:\s+(.+)$|^SMART Health Status:\s+(.+)$', p, re.M | re.I)
     if selftestRe:
-        jsonData.append({'{#DSELFTEST}':d})
-        senderData.append(hostname + ' smartctl.info[' + d + ',selftest] "' + selftestRe.group(1) + '"')
+        if selftestRe.group(1):
+            selftestResult = selftestRe.group(1)
+        elif selftestRe.group(2):
+            selftestResult = selftestRe.group(2)
+        else:
+            selftestResult = 'UNKNOWN'
 
-    valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+\d{3}\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', diskProc, re.M | re.I)   # catch id, name and value
-    #print(d + ': valuesRe:\n', valuesRe)
+        sender.append('%s smartctl.info[%s,selftest] "%s"' % (host, dR, selftestResult))
 
-    jsonData.append({'{#DSMARTSTATUS}':d})
+    rpmRe = re.search(r'^Rotation Rate:\s+(\d+)\s+rpm$', p, re.M | re.I)
+    if rpmRe:
+        sender.append('%s smartctl.info[%s,rpm] "%s"' % (host, dR, rpmRe.group(1)))
+        driveHeader.append(rpmRe.group(1))   # tracking duplicates
+
+    formfactorRe = re.search(r'^Form Factor:\s+(.+)$', p, re.M | re.I)
+    if formfactorRe:
+        sender.append('%s smartctl.info[%s,formFactor] "%s"' % (host, dR, formfactorRe.group(1)))
+
+    # non-SAS info
+    sataVerRe = re.search(r'^SATA Version is:\s+(.+)$', p, re.M | re.I)
+    if sataVerRe:
+        sender.append('%s smartctl.info[%s,sataVersion] "%s"' % (host, dR, sataVerRe.group(1)))
+
+    bandwidthMaxRe = re.search(r'^SATA Version is:\s+.+,\s+(\d+\.\d+)\s+Gb\/s', p, re.M | re.I)
+    if bandwidthMaxRe:
+        json.append({'{#DISKIDBANDWIDTH}':dR})
+        sender.append('%s smartctl.info[%s,bandwidthMax] "%s"' % (host, dR, bandwidthMaxRe.group(1)))
+
+        bandwidthCurrentRe = re.search(r'^SATA Version is:\s+.+current\:\s+(\d+\.\d+)\s+Gb\/s', p, re.M | re.I)
+        if bandwidthCurrentRe:
+            bandwidthCurrentResult = bandwidthCurrentRe.group(1)
+        else:
+            bandwidthCurrentResult = bandwidthMaxRe.group(1)
+
+        sender.append('%s smartctl.info[%s,bandwidthCurrent] "%s"' % (host, dR, bandwidthCurrentResult))
+
+    firmwareRe = re.search(r'^Firmware Version:\s+(.+)$', p, re.M | re.I)
+    if firmwareRe:
+        sender.append('%s smartctl.info[%s,firmware] "%s"' % (host, dR, firmwareRe.group(1)))
+        driveHeader.append(firmwareRe.group(1))   # tracking duplicates
+
+    vendorRe = re.search(r'^Vendor:\s+(.+)$', p, re.M | re.I)
+    if vendorRe:
+        sender.append('%s smartctl.info[%s,vendor] "%s"' % (host, dR, vendorRe.group(1)))
+
+    # SAS-only SSD value
+    ssdwearRe = re.search(r'^Percentage used endurance indicator:\s+(\d+)', p, re.M | re.I)
+    if ssdwearRe:
+        json.append({'{#DISKIDSSD}':dR})
+        sender.append('%s smartctl.value[%s,SSDwear] "%s"' % (host, dR, ssdwearRe.group(1)))
+
+    # SATA values
+    valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+\d{3}\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', p, re.M | re.I)   # catch id, name and value
     if valuesRe:
-        senderData.append(hostname + ' smartctl.info[' + d + ',SmartStatus] "PRESENT"')   # item does not correctly represents action, will be changed in future
+        sender.append('%s smartctl.info[%s,SmartStatus] "PRESENT_SATA"' % (host, dR))
 
         for v in valuesRe:
-            if v[0] == '5':                         # semi-hardcoded values for triggers
-                jsonData.append({'{#DVALUE5}':d})
-            elif v[0] == '187':
-                jsonData.append({'{#DVALUE187}':d})
-            elif v[0] == '188':
-                jsonData.append({'{#DVALUE188}':d})
-            elif v[0] == '197':
-                jsonData.append({'{#DVALUE197}':d})
-            elif v[0] == '198':
-                jsonData.append({'{#DVALUE198}':d})
-            elif v[0] == '199':
-                jsonData.append({'{#DVALUE199}':d})
-            else:
-                jsonData.append({'{#DVALUE}':d, '{#SMARTID}':v[0], '{#SMARTNAME}':v[1]})   # all other possible values
-
-            senderData.append(hostname + ' smartctl.value[' + d + ',' + v[0] + '] ' + v[2])
+            json.append({'{#DVALUE%s}' % v[0]:dR, '{#SMARTNAME}':v[1]})
+            sender.append('%s smartctl.value[%s,%s] %s' % (host, dR, v[0], v[2]))
 
     else:
-        senderData.append(hostname + ' smartctl.info[' + d + ',SmartStatus] "NO_SMART_VALUES"')
+        getSmartSAS_Out = getSmartSAS(p, dR)
+        if not getSmartSAS_Out[0]:
+            sender.append('%s smartctl.info[%s,SmartStatus] "PRESENT_SAS"' % (host, dR))
+            sender.extend(getSmartSAS_Out[1])
+            json.extend(getSmartSAS_Out[2])
 
-if configStatusError != '':
-    senderData.append(hostname + ' smartctl.info[ConfigStatus] "' + configStatusError + '"')
-elif not diskListRe:
-    senderData.append(hostname + ' smartctl.info[ConfigStatus] "NODISKS"')   # if no disks were found
-else:
-    senderData.append(hostname + ' smartctl.info[ConfigStatus] "CONFIGURED"')   # signals that client host is configured
+        else:
+            sender.extend(whyNoSmart(p, dR))
 
-senderDataNStr = '\n'.join(senderData)   # items for zabbix sender separated by newlines
+    return None, sender, json, (serial, driveHeader), (dR, dOrig)
 
-# pass senderDataNStr to smartctl-send.py:
-if sys.argv[1] == 'get':
-    print(dumps({"data": jsonData}, indent=4))   # print data gathered for LLD
 
-    subprocess.Popen([pythonCmd, senderPyPath, 'get', agentConf, senderPath, timeout, senderDataNStr], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)   # spawn new process and regain shell control immediately (on Win 'smartctl-send.py' will not wait)
+def whyNoSmart(p, dR):
+    sender = []
 
-elif sys.argv[1] == 'getverb':
-    subprocess.Popen([pythonCmd, senderPyPath, 'getverb', agentConf, senderPath, timeout, senderDataNStr], stdin=subprocess.PIPE)   # do not detach if in verbose mode, also skips timeout in 'smartctl-send.py'
+    smartUnavailableRe = re.search(r'^SMART support is:\s+Unavailable - device lacks SMART capability', p, re.M | re.I)
+    smartDisabledRe = re.search(r'^SMART support is:\s+Disabled', p, re.M | re.I)
 
-else:
-    print(sys.argv[0] + " : Not supported. Use 'get' or 'getverb'.")
-    #sys.exit(1)  # it's safer to just disable error codes after 3.4 changes
+    if smartUnavailableRe:
+        sender.append('%s smartctl.info[%s,SmartStatus] "UNAVAILABLE"' % (host, dR))
+    elif smartDisabledRe:
+        sender.append('%s smartctl.info[%s,SmartStatus] "DISABLED"' % (host, dR))
+    else:
+        sender.append('%s smartctl.info[%s,SmartStatus] "NO_SMART_VALUES"' % (host, dR))   # something else
+
+    return sender
+
+
+if __name__ == '__main__':
+    fail_ifNot_Py3()
+
+    host = '"%s"' % (sys.argv[2])
+    senderData = []
+    jsonData = []
+
+    configError = None
+    if not diskListManual:   # if manual list is not provided
+        scanDisks_Out = scanDisks()   # scan the disks
+
+        configError = scanDisks_Out[0]   # SCAN_OS_NOCMD, SCAN_OS_ERROR, SCAN_UNKNOWN_ERROR
+        diskList = scanDisks_Out[1]
+    else:
+        diskList = diskListManual   # or just use manually provided settings
+
+    driveHeaders = []
+    for d in diskList:   # cycle through disks
+        getSmart_Out = getSmart(d)
+        finalD = getSmart_Out[4][0]
+        origD = getSmart_Out[4][1]
+
+        # Check for smartctl binary-related errors (if disk scan was bypassed)
+        if getSmart_Out[0]:
+            configError = getSmart_Out[0]   # D_OS_NOCMD, D_OS_ERROR; may rewrite previous (similar) error
+            break   # fatal error
+
+        # Begin duplicate check if desired
+        if skipDuplicates == 'yes':
+            serialCurrent = getSmart_Out[3][0]
+            headerCurrent = getSmart_Out[3][1]
+
+            if serialCurrent and headerCurrent:   # if serial and secondary identifying data is found
+                duplicate = False
+                for s,h in driveHeaders:
+                    if s == serialCurrent and h == headerCurrent:
+                        senderData.append('%s smartctl.info[%s,DriveStatus] "DUPLICATE"' % (host, origD))
+                        jsonData.append({'{#DDRIVESTATUS}':origD})   # populate duplicate only with original drive ID
+                        duplicate = True
+                        break   # break from header check
+
+                if duplicate == True:
+                    continue   # continue to the next disk. other sender and json data is discarded
+
+                driveHeaders.append((serialCurrent, headerCurrent))   # add header info for current disk, only if it's not duplicate
+
+        # Add collected data
+        jsonData.append({'{#DDRIVESTATUS}':finalD})   # always populate 'DriveStatus' LLD
+        senderData.extend(getSmart_Out[1])
+        jsonData.extend(getSmart_Out[2])
+
+    if configError:
+        senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
+    elif not diskList:
+        senderData.append('%s smartctl.info[ConfigStatus] "NODISKS"' % (host))   # if no disks were found
+    else:
+        senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
+
+    link = r'https://github.com/nobodysu/zabbix-smartmontools/issues'
+    processData(senderData, jsonData, agentConf, senderPyPath, senderPath, timeout, host, link)
 
