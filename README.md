@@ -90,8 +90,7 @@ These scripts were tested to work with following configurations:
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
 ## Updating
-### from any to 1.3, 1.4, 1.5, 1.5.1:<br />
-Replace all old files with new ones and reupload the template.
+Replace all old files with new ones and reupload the template. Old LLD items clearing may be required with 'Unlink and clear' on the hosts.
 
 ## Issues
 - Zabbix web panel displays an error on json discovery, but everything works fine
