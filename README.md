@@ -3,14 +3,14 @@
 Cross-platform SMART monitoring scripts with two display modes: [device](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-device-example.png?raw=true) and [serial](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-serial-example.png?raw=true). LLD discovers and sends data in one pass, using minimal number of utilities. Supports any SMART name and displays it as is.
 
 - Utilises smartctl error return codes
-- Full Low-Level Discovery: there is no need to add any SMART items
+- Low-Level Discovery
 - SAS support
 - SSD wear monitoring (SAS only)
 - csmi support
 - Efficient: no unnecessary processes are spawned
 - Bulk items upload with zabbix-sender
-- Error-proof configuration: you'll know when host is not configured
-- Automatic RAID passthrough (when possible)
+- Error-proof configuration: various safeguard triggers
+- Automatic RAID passthrough (when smartctl detects the drives)
 
 ## Triggers
 ![Triggers-Discovery](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers_cut.png)
