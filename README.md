@@ -101,7 +101,7 @@ These scripts were tested to work with following configurations:
 - Ubuntu 17.10 / Zabbix 3.0 / Python 3.6
 - FreeBSD 10.4 / Zabbix 2.4 / Python 3.6
 - Windows XP / Zabbix 2.4 / Python 3.4
-- Windows 7 / ZS (2.4, 3.4) / ZA (2.4, 3.0, 3.2, 3.4) / Python (3.2, 3.4)
+- Windows 7 / ZS (2.4, 3.4) / ZA (2.4, 3.0, 3.2, 3.4) / Python (3.1, 3.2, 3.4)
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
 ## Updating
@@ -110,6 +110,14 @@ If template had changed from previous version - update it first in zabbix web in
 ## FAQ
 Q: Trigger fires when it clearly shouldn't.<br>
 A: Reassign the template with 'Unlink and clear' on the host.
+
+Q: Is it possible to monitor specific drives or exclude some of them.<br>
+Q: SCSI drive returns empty results while `-A` option working correctly.<br>
+A: Specify `diskListManual` in `smartctl-lld.py`:
+```bash
+diskListManual = ['/dev/sda -d sat+megaraid,4', '/dev/sda -d sat+megaraid,5']
+diskListManual = ['/dev/csmi0,0 -d scsi', '/dev/csmi0,1 -d scsi']
+```
 
 Q: Old triggers are misleading after disk replacement.<br>
 A: Wait for 24 hours (default) or perform 'Unlink and clear' on the host. You can also adjust the interval at `template -> Discovery -> SMART disk discovery -> Keep lost resources period`.
