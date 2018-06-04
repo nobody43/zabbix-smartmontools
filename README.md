@@ -13,11 +13,17 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 - Automatic RAID passthrough (when smartctl detects the drives)
 
 ## Triggers
-![Triggers-Discovery](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers_cut.png)
+![Triggers-Discovery2](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers2.png)
 
-![Triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_triggers_cut.png)
+[More disk triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers1.png)<br>
+
+[Disk items](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_items.png)<br>
+
+[Template triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_triggers.png)
 
 Triggers that contain `delta(5d)>0` and `last()>0` will fire on any change unless last value is zero. E.g. when disk is replaced with zero values the trigger will not fire, but if value is less or more - it will. Therefore, replacing a faulty drive with faulty one will still trigger a problem that stays for 5 days (default).
+
+Note: disk temperature is monitored using [different approach](https://github.com/nobodysu/zabbix-mini-IPMI).
 
 ## Installation
 As prerequisites you need `python3`, `smartmontools`, `sudo` and `zabbix-sender` packages. For testing, `zabbix-get` is also required.
@@ -38,6 +44,7 @@ yum install zabbix-get   # testing
 ```
 
 ### Placing the files
+Note: `sender_wrapper.py` is shared among multiple projects and have the same contents - it can be overwritten.
 #### Linux
 ```bash
 mv smartctl-lld.py sender_wrapper.py /etc/zabbix/scripts/
@@ -58,7 +65,7 @@ move smartctl-lld.py C:\zabbix-agent\scripts\
 move sender_wrapper.py C:\zabbix-agent\scripts\
 move userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
 ```
-Install `python3` for all users, adding it to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in environment variables (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
+Install `python3` for [all users](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
 <br />
 Note: currently windows version does not detaches and data can only be gathered on second run.
 
@@ -109,18 +116,19 @@ If template had changed from previous version - update it first in zabbix web in
 
 ## FAQ
 Q: Trigger fires when it clearly shouldn't.<br>
-A: Reassign the template with 'Unlink and clear' on the host.
+Q: Trigger's macro does not expand.<br>
+A: Reassign the template with `Unlink and clear` on the host.
 
-Q: Is it possible to monitor specific drives or exclude some of them.<br>
+Q: Is it possible to monitor specific drives or exclude some of them?<br>
 Q: SCSI drive returns empty results while `-A` option working correctly.<br>
 A: Specify `diskListManual` in `smartctl-lld.py`:
-```bash
+```python
 diskListManual = ['/dev/sda -d sat+megaraid,4', '/dev/sda -d sat+megaraid,5']
 diskListManual = ['/dev/csmi0,0 -d scsi', '/dev/csmi0,1 -d scsi']
 ```
 
 Q: Old triggers are misleading after disk replacement.<br>
-A: Wait for 24 hours (default) or perform 'Unlink and clear' on the host. You can also adjust the interval at `template -> Discovery -> SMART disk discovery -> Keep lost resources period`.
+A: Wait for 24 hours (default) or perform `Unlink and clear` on the host. You can also adjust the interval at `template -> Discovery -> SMART disk discovery -> Keep lost resources period`.
 
 Q: Script exits with exception/error.<br>
 A: [Report](https://github.com/nobodysu/zabbix-smartmontools/issues) it.
