@@ -17,12 +17,27 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 
 ![Triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_triggers_cut.png)
 
+Triggers that contain `delta(5d)>0` and `last()>0` will fire on any change unless last value is zero. E.g. when disk is replaced with zero values the trigger will not fire, but if value is less or more - it will. Therefore, replacing a faulty drive with faulty one will still trigger a problem that stays for 5 days (default).
+
 ## Installation
 As prerequisites you need `python3`, `smartmontools`, `sudo` and `zabbix-sender` packages. For testing, `zabbix-get` is also required.
 <br />
 Take a look at scripts first lines and provide paths if needed. If you have a RAID configuration, also provide that by hand. Choose `device` or `serial` mode. Import `Template_App_smartmontools.xml` in zabbix web interface.
 
-### First step
+### Prerequisites
+[Repository installation](https://www.zabbix.com/documentation/3.0/manual/installation/install_from_packages/repository_installation)
+#### Debian
+```bash
+apt-get install zabbix-agent zabbix-sender smartmontools sudo
+apt-get install zabbix-get   # testing
+```
+#### Centos
+```bash
+yum install zabbix-agent zabbix-sender smartmontools sudo
+yum install zabbix-get   # testing
+```
+
+### Placing the files
 #### Linux
 ```bash
 mv smartctl-lld.py sender_wrapper.py /etc/zabbix/scripts/
@@ -47,7 +62,7 @@ Install `python3` for all users, adding it to `PATH` during installation. Instal
 <br />
 Note: currently windows version does not detaches and data can only be gathered on second run.
 
-### Second step
+### Finalizing
 Then you need to include your zabbix conf folder in `zabbix_agentd.conf`, like this:
 ```conf
 Include=/usr/local/etc/zabbix/zabbix_agentd.conf.d/
@@ -78,7 +93,7 @@ zabbix_get -s 192.0.2.1 -k smartctl.discovery[getverb,"Example host"]
 Verbose mode. Does not detaches or prints LLD. Lists all items sent to zabbix-sender, also it is possible to see sender output in this mode.
 <br /><br />
 
-Note: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`. In this case update value must not be less than 80 seconds.
+Note: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`. In this monitoring solution update interval must not be less than 80 seconds.
 
 These scripts were tested to work with following configurations:
 - Centos 7 / Zabbix 2.4 / Python 3.4
@@ -90,7 +105,17 @@ These scripts were tested to work with following configurations:
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
 ## Updating
-Replace all old files with new ones and reupload the template. Old LLD items clearing may be required with 'Unlink and clear' on the hosts.
+If template had changed from previous version - update it first in zabbix web interface. Otherwise just overwrite old scripts and UserParameters with new ones.
+
+## FAQ
+Q: Trigger fires when it clearly shouldn't.<br>
+A: Reassign the template with 'Unlink and clear' on the host.
+
+Q: Old triggers are misleading after disk replacement.<br>
+A: Wait for 24 hours (default) or perform 'Unlink and clear' on the host. You can also adjust the interval at `template -> Discovery -> SMART disk discovery -> Keep lost resources period`.
+
+Q: Script exits with exception/error.<br>
+A: [Report](https://github.com/nobodysu/zabbix-smartmontools/issues) it.
 
 ## Issues
 - Zabbix web panel displays an error on json discovery, but everything works fine
