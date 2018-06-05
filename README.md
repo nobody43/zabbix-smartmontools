@@ -130,6 +130,9 @@ diskListManual = ['/dev/csmi0,0 -d scsi', '/dev/csmi0,1 -d scsi']
 Q: Old triggers are misleading after disk replacement.<br>
 A: Wait for 24 hours (default) or perform `Unlink and clear` on the host. You can also adjust the interval at `template -> Discovery -> SMART disk discovery -> Keep lost resources period`.
 
+Q: Triggers `Command line did not parse` and `Device open failed` serves identical purpose in `zabbix-smartmontools` and `zabbix-mini-IPMI`.
+A: Disable unneeded pair in either template.
+
 Q: Script exits with exception/error.<br>
 A: [Report](https://github.com/nobodysu/zabbix-smartmontools/issues) it.
 
