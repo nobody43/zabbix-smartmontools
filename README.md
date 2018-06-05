@@ -112,12 +112,13 @@ These scripts were tested to work with following configurations:
 - Windows Server 2012 / Zabbix 2.4 / Python 3.4
 
 ## Updating
-If template had changed from previous version - update it first in zabbix web interface. Otherwise just overwrite old scripts and UserParameters with new ones.
+Overwrite scripts and UserParameters. If UserParameters were changed - agent restart is required. If template had changed from previous version - update it in zabbix web interface [marking](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
 
 ## FAQ
 Q: Trigger fires when it clearly shouldn't.<br>
 Q: Trigger's macro does not expand.<br>
-A: Reassign the template with `Unlink and clear` on the host.
+Q: Triggers from older version does not expire after update.<br>
+A: Reassign the template with `Unlink and clear` on the host for individual resolution. Or reupload the tempate [marking](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
 
 Q: Is it possible to monitor specific drives or exclude some of them?<br>
 Q: SCSI drive returns empty results while `-A` option working correctly.<br>
@@ -130,7 +131,7 @@ diskListManual = ['/dev/csmi0,0 -d scsi', '/dev/csmi0,1 -d scsi']
 Q: Old triggers are misleading after disk replacement.<br>
 A: Wait for 24 hours (default) or perform `Unlink and clear` on the host. You can also adjust the interval at `template -> Discovery -> SMART disk discovery -> Keep lost resources period`.
 
-Q: Triggers `Command line did not parse` and `Device open failed` serves identical purpose in `zabbix-smartmontools` and `zabbix-mini-IPMI`.
+Q: Triggers `Command line did not parse` and `Device open failed` serves identical purpose in `zabbix-smartmontools` and `zabbix-mini-IPMI`.<br>
 A: Disable unneeded pair in either template.
 
 Q: Script exits with exception/error.<br>
