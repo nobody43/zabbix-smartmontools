@@ -114,6 +114,8 @@ These scripts were tested to work with following configurations:
 ## Updating
 Overwrite scripts and UserParameters. If UserParameters were changed - agent restart is required. If template had changed from previous version - update it in zabbix web interface [marking](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
 
+Note: low values in php settings `/etc/httpd/conf.d/zabbix.conf` may result in request failure. Especially `php_value memory_limit`.
+
 ## FAQ
 Q: Trigger fires when it clearly shouldn't.<br>
 Q: Trigger's macro does not expand.<br>
