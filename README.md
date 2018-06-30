@@ -12,6 +12,8 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 - Error-proof configuration: various safeguard triggers
 - Automatic RAID passthrough (when smartctl detects the drives)
 
+Note: disk temperature is monitored using [different approach](https://github.com/nobodysu/zabbix-mini-IPMI).
+
 ## Triggers
 ![Triggers-Discovery2](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers2.png)
 
@@ -22,8 +24,6 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 [Template triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_triggers.png)
 
 Triggers that contain `delta(5d)>0` and `last()>0` will fire on any change unless last value is zero. E.g. when disk is replaced with zero values the trigger will not fire, but if value is less or more - it will. Therefore, replacing a faulty drive with faulty one will still trigger a problem that stays for 5 days (default).
-
-Note: disk temperature is monitored using [different approach](https://github.com/nobodysu/zabbix-mini-IPMI).
 
 ## Installation
 As prerequisites you need `python3`, `smartmontools`, `sudo` and `zabbix-sender` packages. For testing, `zabbix-get` is also required.
