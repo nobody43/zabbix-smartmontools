@@ -230,7 +230,7 @@ def getSmart(d):
     # SATA and SAS info
     familyRe = re.search(r'^Model Family:\s+(.+)$', p, re.M | re.I)
     if familyRe:
-        sender.append('%s smartctl.info[%s,family] "%s"' % (host, dR, familyRe.group(1)))
+        sender.append('%s smartctl.info[%s,family] "%s"' % (host, dR, str(familyRe.group(1)).replace('"', '\\"')))
 
     modelRe = re.search(r'^Device Model:\s+(.+)$|^Device:\s+(.+)$|^Product:\s+(.+)$', p, re.M | re.I)
     if modelRe:
