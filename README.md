@@ -139,8 +139,8 @@ A: Disable unneeded pair in either template.
 Q: Script exits with exception/error.<br>
 A: [Report](https://github.com/nobodysu/zabbix-smartmontools/issues) it.
 
-## Issues
-- Zabbix web panel displays an error on json discovery, but everything works fine (#7)
+## Known issues
+- Zabbix web panel displays an error on json discovery, but everything works fine ([#7](https://github.com/nobodysu/zabbix-smartmontools/issues/7))
 - Data on some systems may be absent right after boot due to ACHI warmup
 - Windows version does not detaches, and data will only be gathered on second pass (probably permanent workaround)
 
