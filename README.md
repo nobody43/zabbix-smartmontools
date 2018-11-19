@@ -141,7 +141,7 @@ A: [Report](https://github.com/nobodysu/zabbix-smartmontools/issues) it.
 
 ## Known issues
 - Zabbix web panel displays an error on json discovery, but everything works fine ([#7](https://github.com/nobodysu/zabbix-smartmontools/issues/7))
-- Data on some systems may be absent right after boot due to ACHI warmup
+- Data on some systems may be absent right after boot due to ACHI warmup ([#14](https://github.com/nobodysu/zabbix-smartmontools/issues/14))
 - Windows version does not detaches, and data will only be gathered on second pass (probably permanent workaround)
 
 ## Planned features
