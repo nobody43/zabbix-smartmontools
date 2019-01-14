@@ -178,7 +178,7 @@ def getSmart(d):
         return fatalError, sender, json, (serial, driveHeader), (dR, dOrig)
 
     except subprocess.CalledProcessError as e:   # handle process-specific errors
-        ''' see 'man smartctl' for more information
+        ''' See 'man smartctl' for more information
         Bit 0 = Code 1
         Bit 1 = Code 2
         Bit 2 = Code 4
@@ -191,9 +191,14 @@ def getSmart(d):
         p = e.output   # substitude output even on error, so it can be processed further
         driveStatus = 'ERR_CODE_%s' % (str(e.args[0]))
 
-        m = "SMART support is: Unavailable - Packet Interface Devices [this device: CD/DVD] don't support ATA SMART"
-        if m in p:
+        m1 = "SMART support is: Unavailable - Packet Interface Devices [this device: CD/DVD] don't support ATA SMART"
+        if m1 in p:
             sender.append('%s smartctl.info[%s,DriveStatus] "CD_DVD_DRIVE"' % (host, dR))
+            return None, sender, json, (serial, driveHeader), (dR, dOrig)
+
+        m2 = "Unknown USB bridge"
+        if m2 in p:
+            sender.append('%s smartctl.info[%s,DriveStatus] "UNK_USB_BRIDGE"' % (host, dR))
             return None, sender, json, (serial, driveHeader), (dR, dOrig)
 
         if e.args[0] == 1 or e.args[0] == 2:
@@ -306,7 +311,7 @@ def getSmart(d):
         sender.append('%s smartctl.value[%s,SSDwear] "%s"' % (host, dR, ssdwearRe.group(1)))
 
     # SATA values
-    valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+\d{3}\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', p, re.M | re.I)   # catch id, name and value
+    valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', p, re.M | re.I)   # catch id, name and value
     if valuesRe:
         sender.append('%s smartctl.info[%s,SmartStatus] "PRESENT_SATA"' % (host, dR))
 
