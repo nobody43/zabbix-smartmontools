@@ -41,7 +41,7 @@ import subprocess
 import re
 import ntpath
 from shlex import split
-from sender_wrapper import (readConfig, processData, replaceStr, fail_ifNot_Py3)
+from sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
 
 
 def scanDisks():
@@ -155,7 +155,8 @@ def getSmart(d):
         d = d.replace('-d scsi', '-d auto')   # prevent empty results
 
     #print("dS:\t'%s'" % d)
-    dR = replaceStr(d)   # sanitize the item key
+    dR = clearDiskTypeStr(d)   # sanitize the item key
+    dR = sanitizeStr(dR)
     dOrig = dR   # save original sanitized device name
 
     #print("dR:\t'%s'" % dR)
@@ -218,7 +219,8 @@ def getSmart(d):
     serialRe = re.search(r'^Serial Number:\s+(.+)$', p, re.M | re.I)
     if serialRe:
         if mode == 'serial':
-            dR = replaceStr(serialRe.group(1))   # in 'serial' mode, if serial number is found it will be used as main identifier, also sanitize it
+            dR = clearDiskTypeStr(serialRe.group(1))   # in 'serial' mode, if serial number is found it will be used as main identifier, also sanitize it
+            dR = sanitizeStr(dR)
             # ! 'd' becomes serial !
 
         sender.append('%s smartctl.info[%s,serial] "%s"' % (host, dR, serialRe.group(1)))
