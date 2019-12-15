@@ -103,13 +103,13 @@ Verbose mode. Does not detaches or prints LLD. Lists all items sent to zabbix-se
 Note: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`. In this monitoring solution update interval must not be less than 80 seconds.
 
 These scripts were tested to work with following configurations:
-- Centos 7 / Zabbix 2.4 / Python 3.4
-- Debian 8 / ZS (2.4, 3.4) / ZA (2.4, 3.0, 3.2, 3.4) / Python 3.4
+- Centos 7 / Zabbix 3.0 / Python 3.6
+- Debian 9 / Zabbix 3.0 / Python 3.5
 - Ubuntu 17.10 / Zabbix 3.0 / Python 3.6
-- FreeBSD 10.4 / Zabbix 2.4 / Python 3.6
-- Windows XP / Zabbix 2.4 / Python 3.4
-- Windows 7 / ZS (2.4, 3.4, 4.2) / ZA (2.4, 3.0, 3.2, 3.4, 4.2) / Python (3.1, 3.2, 3.4, 3.7)
-- Windows Server 2012 / Zabbix 2.4 / Python 3.4
+- FreeBSD 10.3 / Zabbix 3.0 / Python 3.6
+- Windows XP / Zabbix 3.0 / Python 3.4
+- Windows 7 / Zabbix 3.0 / Python (3.4, 3.7, 3.8)
+- Windows Server 2012 / Zabbix 3.0 / Python 3.7
 
 ## Updating
 Overwrite scripts and UserParameters. If UserParameters were changed - agent restart is required. If template had changed from previous version - update it in zabbix web interface [marking](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
