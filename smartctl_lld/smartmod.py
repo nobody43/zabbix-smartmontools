@@ -41,10 +41,10 @@ import subprocess
 import re
 import ntpath
 from shlex import split
-from sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
+from smartctl_lld.sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
 
 
-def scanDisks():
+def scanDisks(command):
     '''Determines available disks. Can be skipped.'''
     try:
         p = subprocess.check_output([ctlPath, '--scan'], universal_newlines=True)   # scan the disks
@@ -63,7 +63,7 @@ def scanDisks():
             p = ''
 
         error = 'SCAN_UNKNOWN_ERROR'
-        if sys.argv[1] == 'getverb':
+        if command == 'getverb':
             raise
 
     disks = re.findall(r'^(/dev/[^#]+)', p, re.M)   # determine full device names and types
@@ -71,7 +71,7 @@ def scanDisks():
     return error, disks
 
 
-def getSmartSAS(p, dR):
+def getSmartSAS(host, p, dR):
     sender = []
     json = []
 
@@ -148,7 +148,7 @@ def getSmartSAS(p, dR):
     return error, sender, json
 
 
-def getSmart(d):
+def getSmart(host, command, d):
     #print("d:\t'%s'" % d)
     d = d.strip()
     if not diskListManual:   # do not replace manual 'scsi'
@@ -206,11 +206,11 @@ def getSmart(d):
             sender.append('%s smartctl.info[%s,DriveStatus] "%s"' % (host, dR, driveStatus))   # duplicate follows
             return None, sender, json, (serial, driveHeader), (dR, dOrig)
 
-    except:
+    except Exception as e:
         p = e.output
         driveStatus = 'UNKNOWN_ERROR_ON_PROCESSING'
 
-        if sys.argv[1] == 'getverb':
+        if command == 'getverb':
             raise
     else:
         driveStatus = 'PROCESSED'   # no trigger assigned, but its needed as a fallback value
@@ -322,7 +322,7 @@ def getSmart(d):
             sender.append('%s smartctl.value[%s,%s] %s' % (host, dR, v[0], v[2]))
 
     else:
-        getSmartSAS_Out = getSmartSAS(p, dR)
+        getSmartSAS_Out = getSmartSAS(host, p, dR)
         if not getSmartSAS_Out[0]:
             sender.append('%s smartctl.info[%s,SmartStatus] "PRESENT_SAS"' % (host, dR))
             sender.extend(getSmartSAS_Out[1])
@@ -350,25 +350,12 @@ def whyNoSmart(p, dR):
     return sender
 
 
-if __name__ == '__main__':
-    fail_ifNot_Py3()
-
-    host = '"%s"' % (sys.argv[2])
-    senderData = []
-    jsonData = []
-
-    configError = None
-    if not diskListManual:   # if manual list is not provided
-        scanDisks_Out = scanDisks()   # scan the disks
-
-        configError = scanDisks_Out[0]   # SCAN_OS_NOCMD, SCAN_OS_ERROR, SCAN_UNKNOWN_ERROR
-        diskList = scanDisks_Out[1]
-    else:
-        diskList = diskListManual   # or just use manually provided settings
-
+def getAllDisks(host, command, diskList):
     driveHeaders = []
+    jsonData = []
+    senderData = []
     for d in diskList:   # cycle through disks
-        getSmart_Out = getSmart(d)
+        getSmart_Out = getSmart(host, command, d)
         finalD = getSmart_Out[4][0]
         origD = getSmart_Out[4][1]
 
@@ -400,6 +387,24 @@ if __name__ == '__main__':
         jsonData.append({'{#DDRIVESTATUS}':finalD})   # always populate 'DriveStatus' LLD
         senderData.extend(getSmart_Out[1])
         jsonData.extend(getSmart_Out[2])
+    return jsonData, senderData
+
+if __name__ == '__main__':
+    fail_ifNot_Py3()
+
+    cmd = sys.argv[1]
+    host = '"%s"' % (sys.argv[2])
+
+    configError = None
+    if not diskListManual:   # if manual list is not provided
+        scanDisks_Out = scanDisks(cmd)   # scan the disks
+
+        configError = scanDisks_Out[0]   # SCAN_OS_NOCMD, SCAN_OS_ERROR, SCAN_UNKNOWN_ERROR
+        diskList = scanDisks_Out[1]
+    else:
+        diskList = diskListManual   # or just use manually provided settings
+
+    jsonData, senderData = getAllDisks(host, command, diskList)
 
     if configError:
         senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
@@ -409,5 +414,4 @@ if __name__ == '__main__':
         senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
 
     link = r'https://github.com/nobodysu/zabbix-smartmontools/issues'
-    processData(senderData, jsonData, agentConf, senderPyPath, senderPath, timeout, host, link)
-
+    processData(senderData, jsonData, config['agentConf'], config['senderPyPath'], config['senderPath'], config['timeout'], host, link)

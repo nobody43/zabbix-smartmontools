@@ -1,0 +1,58 @@
+smartctl 7.0 2018-12-30 r4883 [FreeBSD 12.1-STABLE amd64] (local build)
+Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF INFORMATION SECTION ===
+Vendor:               SEAGATE
+Product:              ST4000NM0023
+Revision:             0004
+Compliance:           SPC-4
+User Capacity:        4,000,787,030,016 bytes [4.00 TB]
+Logical block size:   512 bytes
+LU is fully provisioned
+Rotation Rate:        7200 rpm
+Form Factor:          3.5 inches
+Logical Unit id:      0x5000c50058736557
+Serial number:        Z1Z3SGMD00009437061J
+Device type:          disk
+Transport protocol:   SAS (SPL-3)
+Local Time is:        Wed Jan 29 21:47:21 2020 UTC
+SMART support is:     Available - device has SMART capability.
+SMART support is:     Enabled
+Temperature Warning:  Enabled
+
+=== START OF READ SMART DATA SECTION ===
+SMART Health Status: OK
+
+Current Drive Temperature:     38 C
+Drive Trip Temperature:        60 C
+
+Manufactured in week 14 of year 2014
+Specified cycle count over device lifetime:  10000
+Accumulated start-stop cycles:  119
+Specified load-unload count over device lifetime:  300000
+Accumulated load-unload cycles:  2108
+Elements in grown defect list: 15
+
+Vendor (Seagate Cache) information
+  Blocks sent to initiator = 2013606848
+  Blocks received from initiator = 2350311948
+  Blocks read from cache and sent to initiator = 2636910488
+  Number of read and write commands whose size <= segment size = 2440772192
+  Number of read and write commands whose size > segment size = 798315
+
+Vendor (Seagate/Hitachi) factory information
+  number of hours powered up = 48046.45
+  number of minutes until next internal SMART test = 4
+
+Error counter log:
+           Errors Corrected by           Total   Correction     Gigabytes    Total
+               ECC          rereads/    errors   algorithm      processed    uncorrected
+           fast | delayed   rewrites  corrected  invocations   [10^9 bytes]  errors
+read:   1777985825        0         0  1777985825          0     350675.664           0
+write:         0        0         0         0          0     653674.760           0
+
+Non-medium error count:      181
+
+No Self-tests have been logged
+
+
