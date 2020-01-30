@@ -29,7 +29,27 @@ class TestGetAllDisks(unittest.TestCase):
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
         config = smartctl_lld.parseConfig(None)
         r = smartctl_lld.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
-        # TODO: assertions
+        self.assertEqual(r,
+            ([{'{#DDRIVESTATUS}': 'da0'}, {'{#DISKID}': 'da0'}, {'{#DISKIDSAS}': 'da0'}],
+             ['myhost smartctl.info[da0,serial] "Z1Z3SGMD00009437061J"',
+              'myhost smartctl.info[da0,DriveStatus] "PROCESSED"',
+              'myhost smartctl.info[da0,device] "da0"',
+              'myhost smartctl.info[da0,model] "ST4000NM0023"',
+              'myhost smartctl.info[da0,capacity] "4000787030016"',
+              'myhost smartctl.info[da0,selftest] "OK"',
+              'myhost smartctl.info[da0,rpm] "7200"',
+              'myhost smartctl.info[da0,formFactor] "3.5 inches"',
+              'myhost smartctl.info[da0,vendor] "SEAGATE"',
+              'myhost smartctl.info[da0,SmartStatus] "PRESENT_SAS"',
+              'myhost smartctl.info[da0,revision] "0004"',
+              'myhost smartctl.info[da0,compliance] "SPC-4"',
+              'myhost smartctl.info[da0,manufacturedYear] "2014"',
+              'myhost smartctl.value[da0,loadUnload] "2108"',
+              'myhost smartctl.value[da0,loadUnloadMax] "300000"',
+              'myhost smartctl.value[da0,startStop] "119"',
+              'myhost smartctl.value[da0,startStopMax] "10000"',
+              'myhost smartctl.value[da0,defects] "15"',
+              'myhost smartctl.value[da0,nonMediumErrors] "181"']))
 
     @patch('subprocess.check_output')
     def test_duplicates(self, patchCheckOutput):
@@ -42,11 +62,70 @@ class TestGetAllDisks(unittest.TestCase):
             '-a /dev/da1 -d auto': da1_output,
         })
         config = smartctl_lld.parseConfig(None)
+        config['skipDuplicates'] = True
         r = smartctl_lld.getAllDisks(config, "myhost", "getverb", [
             "/dev/da0 -d scsi",
             "/dev/da1 -d scsi",
         ])
-        # TODO: assertions
+        self.assertEqual(r,
+            ([{'{#DDRIVESTATUS}': 'da0'},
+              {'{#DISKID}': 'da0'},
+              {'{#DISKIDSAS}': 'da0'},
+              {'{#DDRIVESTATUS}': 'da1'}],
+             ['myhost smartctl.info[da0,serial] "Z1Z3SGMD00009437061J"',
+              'myhost smartctl.info[da0,DriveStatus] "PROCESSED"',
+              'myhost smartctl.info[da0,device] "da0"',
+              'myhost smartctl.info[da0,model] "ST4000NM0023"',
+              'myhost smartctl.info[da0,capacity] "4000787030016"',
+              'myhost smartctl.info[da0,selftest] "OK"',
+              'myhost smartctl.info[da0,rpm] "7200"',
+              'myhost smartctl.info[da0,formFactor] "3.5 inches"',
+              'myhost smartctl.info[da0,vendor] "SEAGATE"',
+              'myhost smartctl.info[da0,SmartStatus] "PRESENT_SAS"',
+              'myhost smartctl.info[da0,revision] "0004"',
+              'myhost smartctl.info[da0,compliance] "SPC-4"',
+              'myhost smartctl.info[da0,manufacturedYear] "2014"',
+              'myhost smartctl.value[da0,loadUnload] "2108"',
+              'myhost smartctl.value[da0,loadUnloadMax] "300000"',
+              'myhost smartctl.value[da0,startStop] "119"',
+              'myhost smartctl.value[da0,startStopMax] "10000"',
+              'myhost smartctl.value[da0,defects] "15"',
+              'myhost smartctl.value[da0,nonMediumErrors] "181"',
+              'myhost smartctl.info[da1,DriveStatus] "DUPLICATE"']))
+
+    @patch('subprocess.check_output')
+    def test_serial(self, patchCheckOutput):
+        f = open("test/example/%s" % "ST4000NM0023.txt")
+        da0_output = f.read()
+        f.close()
+        patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
+        config = smartctl_lld.parseConfig(None)
+        config['mode'] = 'serial'
+        r = smartctl_lld.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
+        self.assertEqual(r,
+            ([{'{#DDRIVESTATUS}': 'Z1Z3SGMD00009437061J'},
+              {'{#DISKID}': 'Z1Z3SGMD00009437061J'},
+              {'{#DISKIDSAS}': 'Z1Z3SGMD00009437061J'}],
+             ['myhost smartctl.info[Z1Z3SGMD00009437061J,serial] "Z1Z3SGMD00009437061J"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,DriveStatus] "PROCESSED"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,device] "da0"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,model] "ST4000NM0023"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,capacity] "4000787030016"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,selftest] "OK"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,rpm] "7200"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,formFactor] "3.5 inches"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,vendor] "SEAGATE"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,SmartStatus] "PRESENT_SAS"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,revision] "0004"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,compliance] "SPC-4"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,manufacturedYear] "2014"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,loadUnload] "2108"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,loadUnloadMax] "300000"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,startStop] "119"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,startStopMax] "10000"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,defects] "15"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,nonMediumErrors] "181"']))
+
 
 class TestGetSmart(unittest.TestCase):
     def runtest(self, filename, expected, patchCheckOutput):
