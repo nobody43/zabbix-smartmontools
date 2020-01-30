@@ -1,4 +1,5 @@
 import configparser
+import glob
 import ntpath
 import os
 import re
@@ -362,10 +363,16 @@ def parseConfig(path=None):
         if not path:
             path = "/etc/zabbix/zabbix-smartmontools.conf"
     elif 'freebsd' in sys.platform:
-        agent_conf = '/usr/local/etc/zabbix/zabbix_agentd.conf'
-        sender_py_path = "/usr/local/etc/zabbix/scripts/sender_wrapper.py"
+        # FreeBSD usually installs Zabbix in a dir containing the version
+        # number, ala "zabbix42"
+        try:
+            zabbixdir = glob.glob('/usr/local/etc/zabbix*')[0]
+        except IndexError:
+            raise 'Error: can\'t find path to Zabbix config directory'
+        agent_conf = '%s/zabbix_agentd.conf' % zabbixdir
+        sender_py_path = "%s/scripts/sender_wrapper.py" % zabbixdir
         if not path:
-            path = "/usr/local/etc/zabbix/zabbix-smartmontools.conf"
+            path = "%s/zabbix-smartmontools.conf" % zabbixdir
     elif os.name == 'nt':
         agent_conf = 'C:\zabbix_agentd.conf'
         sender_py_path = "C:\zabbix-agent\scripts\sender_wrapper.py"
