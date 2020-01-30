@@ -2,52 +2,21 @@
 
 ## Installation instructions: https://github.com/nobodysu/zabbix-smartmontools ##
 
-mode = 'device'        # 'device' or 'serial' as primary identifier in zabbix item's name
-                       # 'serial' is preferred for multi-disk system
-
-skipDuplicates = 'yes' # skip duplicate disk outputs. 'DriveStatus' json will not be skipped
-                       # determined by disk serial, model, capacity and firmware (serial + at least one of others)
-
-ctlPath = r'smartctl'
-#ctlPath = r'C:\Program Files\smartmontools\bin\smartctl.exe'        # if smartctl isn't in PATH
-#ctlPath = r'/usr/local/sbin/smartctl'
-
-# path to second send script
-senderPyPath = r'/etc/zabbix/scripts/sender_wrapper.py'              # Linux
-#senderPyPath = r'C:\zabbix-agent\scripts\sender_wrapper.py'         # Win
-#senderPyPath = r'/usr/local/etc/zabbix/scripts/sender_wrapper.py'   # BSD
-
-# path to zabbix agent configuration file
-agentConf = r'/etc/zabbix/zabbix_agentd.conf'                        # Linux
-#agentConf = r'C:\zabbix_agentd.conf'                                # Win
-#agentConf = r'/usr/local/etc/zabbix3/zabbix_agentd.conf'            # BSD
-
-senderPath = r'zabbix_sender'                                        # Linux, BSD
-#senderPath = r'C:\zabbix-agent\bin\win32\zabbix_sender.exe'         # Win
-
-timeout = '80'   # how long the script must wait between LLD and sending, increase if data received late (does not affect windows)
-                 # this setting MUST be lower than 'Update interval' in discovery rule
-
-# manually provide disk list or RAID configuration if needed
-diskListManual = []
-# like this:
-#diskListManual = ['/dev/sda -d sat+megaraid,4', '/dev/sda -d sat+megaraid,5']
-# more info: https://www.smartmontools.org/wiki/Supported_RAID-Controllers
-
-## End of configuration ##
-
-import sys
-import subprocess
-import re
+import configparser
 import ntpath
+import os
+import re
 from shlex import split
+import subprocess
+import sys
+
 from smartctl_lld.sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
 
 
-def scanDisks(command):
+def scanDisks(config, command):
     '''Determines available disks. Can be skipped.'''
     try:
-        p = subprocess.check_output([ctlPath, '--scan'], universal_newlines=True)   # scan the disks
+        p = subprocess.check_output([config['ctlPath'], '--scan'], universal_newlines=True)   # scan the disks
         error = ''
     except OSError as e:
         p = ''
@@ -148,10 +117,10 @@ def getSmartSAS(host, p, dR):
     return error, sender, json
 
 
-def getSmart(host, command, d):
+def getSmart(config, host, command, d):
     #print("d:\t'%s'" % d)
     d = d.strip()
-    if not diskListManual:   # do not replace manual 'scsi'
+    if not 'Disks' in config:
         d = d.replace('-d scsi', '-d auto')   # prevent empty results
 
     #print("dS:\t'%s'" % d)
@@ -169,7 +138,7 @@ def getSmart(host, command, d):
     driveHeader = []   # tracking duplicates
 
     try:
-        p = subprocess.check_output([ctlPath, '-a'] + split(d), universal_newlines=True)   # take string from 'diskListRe', make arguments from it and append to existing command, then run it
+        p = subprocess.check_output([config['ctlPath'], '-a'] + split(d), universal_newlines=True)   # take string from 'diskListRe', make arguments from it and append to existing command, then run it
     except OSError as e:
         if e.args[0] == 2:
             fatalError = 'D_OS_NOCMD'
@@ -218,7 +187,7 @@ def getSmart(host, command, d):
     # Determine disk identifier
     serialRe = re.search(r'^Serial Number:\s+(.+)$', p, re.M | re.I)
     if serialRe:
-        if mode == 'serial':
+        if config['mode'] == 'serial':
             dR = clearDiskTypeStr(serialRe.group(1))   # in 'serial' mode, if serial number is found it will be used as main identifier, also sanitize it
             dR = sanitizeStr(dR)
             # ! 'd' becomes serial !
@@ -350,12 +319,12 @@ def whyNoSmart(p, dR):
     return sender
 
 
-def getAllDisks(host, command, diskList):
+def getAllDisks(config, host, command, diskList):
     driveHeaders = []
     jsonData = []
     senderData = []
     for d in diskList:   # cycle through disks
-        getSmart_Out = getSmart(host, command, d)
+        getSmart_Out = getSmart(config, host, command, d)
         finalD = getSmart_Out[4][0]
         origD = getSmart_Out[4][1]
 
@@ -365,7 +334,7 @@ def getAllDisks(host, command, diskList):
             break   # fatal error
 
         # Begin duplicate check if desired
-        if skipDuplicates == 'yes':
+        if config['skipDuplicates']:
             serialCurrent = getSmart_Out[3][0]
             headerCurrent = getSmart_Out[3][1]
 
@@ -389,20 +358,58 @@ def getAllDisks(host, command, diskList):
         jsonData.extend(getSmart_Out[2])
     return jsonData, senderData
 
+# Read the config file and return a dict of settings
+def parseConfig(path=None):
+    if sys.platform == 'linux':
+        agent_conf = '/etc/zabbix/zabbix_agentd.conf'
+        sender_py_path = "/etc/zabbix/scripts/sender_wrapper.py"
+        if not path:
+            path = "/etc/zabbix/zabbix-smartmontools.conf"
+    elif 'freebsd' in sys.platform:
+        agent_conf = '/usr/local/etc/zabbix/zabbix_agentd.conf'
+        sender_py_path = "/usr/local/etc/zabbix/scripts/sender_wrapper.py"
+        if not path:
+            path = "/usr/local/etc/zabbix/zabbix-smartmontools.conf"
+    elif os.name == 'nt':
+        agent_conf = 'C:\zabbix_agentd.conf'
+        sender_py_path = "C:\zabbix-agent\scripts\sender_wrapper.py"
+        if not path:
+            path = "C:\zabbix-agent\zabbix-smartmontools.conf"
+    else:
+        raise NotImplementedError
+    config = configparser.ConfigParser()
+    config.read(path)
+    d = {
+        'mode': config.get('settings', 'mode', fallback='device'),
+        'skipDuplicates': config.getboolean('settings', 'skipDuplicates',
+            fallback=True),
+        'ctlPath': config.get('settings', 'ctlPath', fallback='smartctl'),
+        'senderPyPath': config.get('settings', 'senderPyPath',
+            fallback=sender_py_path),
+        'agentConf': config.get('settings', 'agentConf', fallback=agent_conf),
+        'timeout': config.getint('settings', 'timeout', fallback=80)
+    }
+    if config.has_section('Disks'):
+        d['Disks'] = ["%s %s" % (k, v) for (k, v) in config['Disks'].items()]
+
+    return d
+
+
 if __name__ == '__main__':
     fail_ifNot_Py3()
 
     cmd = sys.argv[1]
     host = '"%s"' % (sys.argv[2])
+    config = parseConfig()
 
     configError = None
-    if not diskListManual:   # if manual list is not provided
-        scanDisks_Out = scanDisks(cmd)   # scan the disks
+    if not 'Disks' in config:
+        scanDisks_Out = scanDisks(config, cmd)   # scan the disks
 
         configError = scanDisks_Out[0]   # SCAN_OS_NOCMD, SCAN_OS_ERROR, SCAN_UNKNOWN_ERROR
         diskList = scanDisks_Out[1]
     else:
-        diskList = diskListManual   # or just use manually provided settings
+        diskList = config['Disks']
 
     jsonData, senderData = getAllDisks(host, command, diskList)
 

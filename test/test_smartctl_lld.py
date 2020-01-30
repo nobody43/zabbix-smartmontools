@@ -27,7 +27,8 @@ class TestGetAllDisks(unittest.TestCase):
         da0_output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
-        r = smartctl_lld.getAllDisks("myhost", "getverb", ["/dev/da0 -d scsi"])
+        config = smartctl_lld.parseConfig(None)
+        r = smartctl_lld.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
         # TODO: assertions
 
     @patch('subprocess.check_output')
@@ -40,7 +41,8 @@ class TestGetAllDisks(unittest.TestCase):
             '-a /dev/da0 -d auto': da0_output,
             '-a /dev/da1 -d auto': da1_output,
         })
-        r = smartctl_lld.getAllDisks("myhost", "getverb", [
+        config = smartctl_lld.parseConfig(None)
+        r = smartctl_lld.getAllDisks(config, "myhost", "getverb", [
             "/dev/da0 -d scsi",
             "/dev/da1 -d scsi",
         ])
@@ -52,7 +54,8 @@ class TestGetSmart(unittest.TestCase):
         output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': output})
-        r = smartctl_lld.getSmart("myhost", "getverb", "/dev/da0 -d scsi ")
+        config = smartctl_lld.parseConfig(None)
+        r = smartctl_lld.getSmart(config, "myhost", "getverb", "/dev/da0 -d scsi ")
         self.assertEqual(r, expected)
 
     @parameterized.expand([
@@ -86,10 +89,39 @@ class TestGetSmart(unittest.TestCase):
     def test_freebsd(self, filename, expected, patchCheckOutput):
         self.runtest(filename, expected, patchCheckOutput)
 
+class TestParseConfig(unittest.TestCase):
+    def test_defaults(self):
+        ''' Should have sane defaults if config file is not present '''
+        config = smartctl_lld.parseConfig("/does_not_exist!!!")
+        self.assertEqual(config['mode'], 'device')
+        self.assertTrue(config['skipDuplicates'])
+        self.assertEqual(config['ctlPath'], 'smartctl')
+        self.assertEqual(config['timeout'], 80)
+        self.assertFalse('Disks' in config)
+
+    def test_disk_list(self):
+        config = smartctl_lld.parseConfig('test/example/with_disk_list.conf')
+        self.assertEqual(config['Disks'], [
+            "/dev/sda -d sat+megaraid,4",
+            "/dev/da0 -d scsi"
+        ])
+
+    def test_no_disk_list(self):
+        config = smartctl_lld.parseConfig('test/example/no_disk_list.conf')
+        self.assertEqual(config['mode'], 'device')
+        self.assertTrue(config['skipDuplicates'])
+        self.assertEqual(config['ctlPath'], 'smartctl')
+        self.assertEqual(config['senderPyPath'],
+                '/etc/zabbix/scripts/sender_wrapper.py')
+        self.assertEqual(config['agentConf'], '/etc/zabbix/zabbix_agentd.conf')
+        self.assertEqual(config['timeout'], 80)
+        self.assertFalse('Disks' in config)
+
 class TestScan(unittest.TestCase):
     def runtest(self, output, expected_disks, patchCheckOutput):
         patchCheckOutput.side_effect = mock_smartctl({'--scan': output})
-        (error, disks) = smartctl_lld.scanDisks("getverb")
+        config = smartctl_lld.parseConfig(None)
+        (error, disks) = smartctl_lld.scanDisks(config, "getverb")
         self.assertEqual(error, "")
         self.assertEqual(disks, expected_disks)
 
