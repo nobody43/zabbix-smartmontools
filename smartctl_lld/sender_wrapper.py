@@ -14,7 +14,7 @@ def isWindows():
         return False
 
         
-def send():
+def send(fetchMode, agentConf, senderPath, timeout, senderDataNStr):
 
     if fetchMode == 'get':
         sleep(timeout)   # wait for LLD to be processed by server
@@ -22,10 +22,6 @@ def send():
                                       stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
 
     elif fetchMode == 'getverb':
-        print('\n  Note: the sender will fail if server did not gather LLD previously.')
-        print('\n  Data sent to zabbix sender:')
-        print('\n')
-        print(senderDataNStr)
         senderProc = subprocess.Popen([senderPath, '-vv', '-c', agentConf, '-i', '-'],
                                       stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
 
@@ -36,21 +32,6 @@ def send():
     senderProc.communicate(input=senderDataNStr)
 
 
-if __name__ == '__main__':
-    fetchMode = sys.argv[1]
-
-    agentConf = sys.argv[2]
-    senderPath = sys.argv[3]
-    timeout = int(sys.argv[4])
-    senderDataNStr = sys.argv[5]
-
-    if isWindows():
-        timeout = 0
-
-    send()
-
-
-# External
 def fail_ifNot_Py3():
     '''Terminate if not using python3.'''
     if sys.version_info.major != 3:
@@ -136,46 +117,17 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
     if fetchMode_ == 'get':
         print(dumps({"data": jsonData_}, indent=4))   # print data gathered for LLD
 
-        # spawn new process and regain shell control immediately (on Win 'sender_wrapper.py' will not wait)
-        try:
-            cmd = [sys.executable, senderPyPath_, fetchMode_, agentConf_, senderPath_, str(timeout_), senderDataNStr]
-        
-            subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=DEVNULL, stderr=DEVNULL, close_fds=(not isWindows()))
-
-        except OSError as e:
-            if e.args[0] == 7:
-                subprocess.call([senderPath_, '-c', agentConf_, '-s', host_, '-k', sendStatusKey_, '-o', 'HUGEDATA'])
-            else:
-                subprocess.call([senderPath_, '-c', agentConf_, '-s', host_, '-k', sendStatusKey_, '-o', 'SEND_OS_ERROR'])
-
-        except:
-            subprocess.call(    [senderPath_, '-c', agentConf_, '-s', host_, '-k', sendStatusKey_, '-o', 'UNKNOWN_SEND_ERROR'])
+        send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
 
     elif fetchMode_ == 'getverb':
         displayVersions(agentConf_, senderPath_)
         readConfig(agentConf_)
+        print('\n  Note: the sender will fail if server did not gather LLD previously.')
+        print('\n  Data sent to zabbix sender:')
+        print('\n')
+        print(senderDataNStr)
 
-        #for i in range(135000): senderDataNStr = senderDataNStr + '0'   # HUGEDATA testing
-        try:
-            # do not detach if in verbose mode, also skips timeout in 'sender_wrapper.py'
-            cmd = [sys.executable, senderPyPath_, 'getverb', agentConf_, senderPath_, str(timeout_), senderDataNStr]
-            
-            subprocess.Popen(cmd, stdin=subprocess.PIPE, close_fds=(not isWindows()))
-
-        except OSError as e:
-            if e.args[0] == 7:   # almost unreachable in case of this script
-                print(sys.argv[0] + ': Could not send anything. Argument list or filepath too long. (HUGEDATA)')   # FileNotFoundError: [WinError 206]
-            else:
-                print(sys.argv[0] + ': Something went wrong. (SEND_OS_ERROR)')
-
-            raise
-
-        except:
-            print(sys.argv[0] + ': Something went wrong. (UNKNOWN_SEND_ERROR)')
-            raise
-
-        finally:
-            print('  Please report any issues or missing features to:\n%s\n' % issuesLink_)
+        send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
 
     else:
         print(sys.argv[0] + ": Not supported. Use 'get' or 'getverb'.")
