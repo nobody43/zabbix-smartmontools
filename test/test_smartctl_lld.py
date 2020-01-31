@@ -193,6 +193,7 @@ class TestParseConfig(unittest.TestCase):
         self.assertEqual(config['senderPyPath'],
                 '/etc/zabbix/scripts/sender_wrapper.py')
         self.assertEqual(config['agentConf'], '/etc/zabbix/zabbix_agentd.conf')
+        self.assertEqual(config['senderPath'], 'zabbix_sender')
         self.assertEqual(config['timeout'], 80)
         self.assertFalse('Disks' in config)
 

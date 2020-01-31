@@ -359,6 +359,7 @@ def getAllDisks(config, host, command, diskList):
 def parseConfig(path=None):
     if sys.platform == 'linux':
         agent_conf = '/etc/zabbix/zabbix_agentd.conf'
+        sender_path = "zabbix_sender"
         sender_py_path = "/etc/zabbix/scripts/sender_wrapper.py"
         if not path:
             path = "/etc/zabbix/zabbix-smartmontools.conf"
@@ -370,11 +371,13 @@ def parseConfig(path=None):
         except IndexError:
             raise 'Error: can\'t find path to Zabbix config directory'
         agent_conf = '%s/zabbix_agentd.conf' % zabbixdir
+        sender_path = "zabbix_sender"
         sender_py_path = "%s/scripts/sender_wrapper.py" % zabbixdir
         if not path:
             path = "%s/zabbix-smartmontools.conf" % zabbixdir
     elif os.name == 'nt':
         agent_conf = 'C:\zabbix_agentd.conf'
+        sender_path = "C:\zabbix-agent\bin\win32\zabbix_sender.exe"
         sender_py_path = "C:\zabbix-agent\scripts\sender_wrapper.py"
         if not path:
             path = "C:\zabbix-agent\zabbix-smartmontools.conf"
@@ -387,6 +390,8 @@ def parseConfig(path=None):
         'skipDuplicates': config.getboolean('settings', 'skipDuplicates',
             fallback=True),
         'ctlPath': config.get('settings', 'ctlPath', fallback='smartctl'),
+        'senderPath': config.get('settings', 'senderPath',
+            fallback=sender_path),
         'senderPyPath': config.get('settings', 'senderPyPath',
             fallback=sender_py_path),
         'agentConf': config.get('settings', 'agentConf', fallback=agent_conf),
