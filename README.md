@@ -65,7 +65,7 @@ sudo install -m 644 BSD/zabbix_agentd.conf.d/userparameter_smartctl.conf /usr/lo
 
 #### Windows
 ```cmd
-python3 setup.py install
+python setup.py install
 move scripts/smartctl-lld.py C:\zabbix-agent\scripts\
 move zabbix-smartmontools.conf C:\zabbix-agent\
 move Win/zabbix_agentd.conf.d/userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\

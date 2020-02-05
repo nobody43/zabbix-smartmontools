@@ -357,7 +357,7 @@ def getAllDisks(config, host, command, diskList):
 
 # Read the config file and return a dict of settings
 def parseConfig(path=None):
-    if sys.platform == 'linux':
+    if sys.platform.startswith('linux'):
         agent_conf = '/etc/zabbix/zabbix_agentd.conf'
         sender_path = "zabbix_sender"
         sender_py_path = "/etc/zabbix/scripts/sender_wrapper.py"
@@ -375,7 +375,7 @@ def parseConfig(path=None):
         sender_py_path = "%s/scripts/sender_wrapper.py" % zabbixdir
         if not path:
             path = "%s/zabbix-smartmontools.conf" % zabbixdir
-    elif os.name == 'nt':
+    elif os.platform == 'win32':
         agent_conf = 'C:\zabbix_agentd.conf'
         sender_path = "C:\zabbix-agent\bin\win32\zabbix_sender.exe"
         sender_py_path = "C:\zabbix-agent\scripts\sender_wrapper.py"
