@@ -47,23 +47,28 @@ yum install zabbix-get   # testing
 Note: `sender_wrapper.py` is shared among multiple projects and have the same contents - it can be overwritten.
 #### Linux
 ```bash
-mv smartctl-lld.py sender_wrapper.py /etc/zabbix/scripts/
-mv sudoers.d/zabbix /etc/sudoers.d/   # place sudoers include here for smartctl-lld.py sudo access
-mv userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.d/   # move zabbix items include here
+sudo python3 setup.py install
+sudo install -m 755 scripts/smartctl-lld.py /etc/zabbix/scripts/
+sudo install -m 440 Linux/sudoers.d/zabbix /etc/sudoers.d/
+sudo install -m 644 zabbix-smartmontools.conf /etc/zabbix/
+sudo install -m 644 Linux/zabbix_agentd.d/userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.d/
 ```
 
 #### FreeBSD
 ```bash
-mv smartctl-lld.py sender_wrapper.py /usr/local/etc/zabbix/scripts/
-mv sudoers.d/zabbix /usr/local/etc/sudoers.d/
-mv userparameter_smartctl.conf /usr/local/etc/zabbix/zabbix_agentd.d/
+sudo python3 setup.py install
+sudo install -m 755 scripts/smartctl-lld.py /usr/local/etc/zabbix42/scripts/
+sudo install -m 440 BSD/sudoers.d/zabbix /usr/local/etc/sudoers.d/
+sudo install -m 644 zabbix-smartmontools.conf /usr/local/etc/zabbix42/
+sudo install -m 644 BSD/zabbix_agentd.conf.d/userparameter_smartctl.conf /usr/local/etc/zabbix42/zabbix_agentd.conf.d/
 ```
 
 #### Windows
 ```cmd
-move smartctl-lld.py C:\zabbix-agent\scripts\
-move sender_wrapper.py C:\zabbix-agent\scripts\
-move userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
+python setup.py install
+move scripts/smartctl-lld.py C:\zabbix-agent\scripts\
+move zabbix-smartmontools.conf C:\zabbix-agent\
+move Win/zabbix_agentd.conf.d/userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
 ```
 Install `python3` for [all users](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
 <br />
@@ -76,15 +81,10 @@ Include=/usr/local/etc/zabbix/zabbix_agentd.conf.d/
 ```
 Also its recomended to add at least `Timeout=10` to config file to allow drives spun up in rare cases.
 
-Thats all for Windows. For others run the following to finish configuration:
+That's all for Windows. For others run the following to finish configuration:
 ```bash
-chmod 755 smartctl-lld.py sender_wrapper.py   # apply necessary permissions
-chown root:zabbix smartctl-lld.py sender_wrapper.py
-chmod 644 userparameter_smartctl.conf
-chown root:zabbix userparameter_smartctl.conf
-chmod 400 sudoers.d/zabbix
-chown root sudoers.d/zabbix
-visudo   # test sudoers configuration, type :q! to exit
+sudo vim /etc/zabbix/zabbix-smartmontools.conf	# Review settings
+sudo visudo   # test sudoers configuration, type :q! to exit
 ```
 
 ## Testing
@@ -106,7 +106,7 @@ These scripts were tested to work with following configurations:
 - Centos 7 / Zabbix 3.0 / Python 3.6
 - Debian 9 / Zabbix 3.0 / Python 3.5
 - Ubuntu 17.10 / Zabbix 3.0 / Python 3.6
-- FreeBSD 10.3 / Zabbix 3.0 / Python 3.6
+- FreeBSD 12.1 / Zabbix 4.2 / Python 3.7
 - Windows XP / Zabbix 3.0 / Python 3.4
 - Windows 7 / Zabbix 3.0 / Python (3.4, 3.7, 3.8)
 - Windows Server 2012 / Zabbix 3.0 / Python 3.7
