@@ -138,7 +138,7 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
 
         # spawn new process and regain shell control immediately (on Win 'sender_wrapper.py' will not wait)
         try:
-            cmd = [sys.executable, senderPyPath_, fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr]
+            cmd = [sys.executable, senderPyPath_, fetchMode_, agentConf_, senderPath_, str(timeout_), senderDataNStr]
         
             subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=DEVNULL, stderr=DEVNULL, close_fds=(not isWindows()))
 
@@ -158,7 +158,7 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
         #for i in range(135000): senderDataNStr = senderDataNStr + '0'   # HUGEDATA testing
         try:
             # do not detach if in verbose mode, also skips timeout in 'sender_wrapper.py'
-            cmd = [sys.executable, senderPyPath_, 'getverb', agentConf_, senderPath_, timeout_, senderDataNStr]
+            cmd = [sys.executable, senderPyPath_, 'getverb', agentConf_, senderPath_, str(timeout_), senderDataNStr]
             
             subprocess.Popen(cmd, stdin=subprocess.PIPE, close_fds=(not isWindows()))
 
