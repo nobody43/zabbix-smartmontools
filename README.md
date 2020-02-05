@@ -1,5 +1,7 @@
 # zabbix-smartmontools
 ## Features
+Note: `master` is WiP. Use the [latest](https://github.com/nobodysu/zabbix-smartmontools/releases) release for now.
+
 Cross-platform SMART monitoring scripts with two display modes: [device](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-device-example.png?raw=true) and [serial](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-serial-example.png?raw=true). LLD discovers and sends data in one pass, using minimal number of utilities. Supports any SMART name and displays it as is.
 
 - Utilises smartctl error return codes
