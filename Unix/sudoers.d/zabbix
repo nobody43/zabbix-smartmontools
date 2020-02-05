@@ -1,4 +1,4 @@
 #Defaults:zabbix !requiretty   # Uncomment in case of sudo errors
 
-zabbix	ALL=NOPASSWD:	/usr/local/etc/zabbix*/scripts/smartctl-lld.py
+zabbix	ALL=NOPASSWD:	/usr/local/bin/zabbix-smartctl
 

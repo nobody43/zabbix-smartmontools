@@ -50,25 +50,22 @@ Note: `sender_wrapper.py` is shared among multiple projects and have the same co
 #### Linux
 ```bash
 sudo python3 setup.py install
-sudo install -m 755 scripts/smartctl-lld.py /etc/zabbix/scripts/
-sudo install -m 440 Linux/sudoers.d/zabbix /etc/sudoers.d/
-sudo install -m 644 zabbix-smartmontools.conf /etc/zabbix/
+sudo cp /usr/share/doc/examples/smartctl-lld/sudoers.d/zabbix /etc/sudoers.d/zabbix
+sudo cp /usr/share/doc/examples/smartctl-lld/zabbix-smartmontools.conf /etc
 sudo install -m 644 Linux/zabbix_agentd.d/userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.conf.d/
 ```
 
 #### FreeBSD
 ```bash
 sudo python3 setup.py install
-sudo install -m 755 scripts/smartctl-lld.py /usr/local/etc/zabbix42/scripts/
-sudo install -m 440 BSD/sudoers.d/zabbix /usr/local/etc/sudoers.d/
-sudo install -m 644 zabbix-smartmontools.conf /usr/local/etc/zabbix42/
+sudo cp /usr/local/share/examples/smartctl-lld/sudoers.d/zabbix /usr/local/etc/sudoers.d/zabbix
+sudo cp /usr/local/share/examples/smartctl-lld/zabbix-smartmontools.conf /usr/local/etc
 sudo install -m 644 BSD/zabbix_agentd.conf.d/userparameter_smartctl.conf /usr/local/etc/zabbix42/zabbix_agentd.conf.d/
 ```
 
 #### Windows
 ```cmd
 python setup.py install
-move scripts\smartctl-lld.py C:\zabbix-agent\scripts\
 move zabbix-smartmontools.conf C:\zabbix-agent\
 move Win\zabbix_agentd.conf.d\userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
 ```

@@ -362,19 +362,23 @@ def parseConfig(path=None):
         sender_path = "zabbix_sender"
         sender_py_path = "/etc/zabbix/scripts/sender_wrapper.py"
         if not path:
-            path = "/etc/zabbix/zabbix-smartmontools.conf"
+            path = "/etc/zabbix-smartmontools.conf"
     elif 'freebsd' in sys.platform:
         # FreeBSD usually installs Zabbix in a dir containing the version
         # number, ala "zabbix42"
         try:
-            zabbixdir = glob.glob('/usr/local/etc/zabbix*')[0]
+            zabbixdir = [
+                    p
+                    for p in glob.glob('/usr/local/etc/zabbix*')
+                    if os.path.isdir(p)
+            ][0]
         except IndexError:
             raise 'Error: can\'t find path to Zabbix config directory'
         agent_conf = '%s/zabbix_agentd.conf' % zabbixdir
         sender_path = "zabbix_sender"
         sender_py_path = "%s/scripts/sender_wrapper.py" % zabbixdir
         if not path:
-            path = "%s/zabbix-smartmontools.conf" % zabbixdir
+            path = "/usr/local/etc/zabbix-smartmontools.conf"
     elif sys.platform == 'win32':
         agent_conf = r'C:\zabbix_agentd.conf'
         sender_path = r"C:\zabbix-agent\bin\win32\zabbix_sender.exe"
@@ -400,3 +404,31 @@ def parseConfig(path=None):
         d['Disks'] = ["%s %s" % (k, v) for (k, v) in config['Disks'].items()]
 
     return d
+
+def main():
+    fail_ifNot_Py3()
+
+    cmd = sys.argv[1]
+    host = '"%s"' % (sys.argv[2])
+    config = parseConfig()
+
+    configError = None
+    if not 'Disks' in config:
+        scanDisks_Out = scanDisks(config, cmd)   # scan the disks
+
+        configError = scanDisks_Out[0]   # SCAN_OS_NOCMD, SCAN_OS_ERROR, SCAN_UNKNOWN_ERROR
+        diskList = scanDisks_Out[1]
+    else:
+        diskList = config['Disks']
+
+    jsonData, senderData = getAllDisks(config, host, cmd, diskList)
+
+    if configError:
+        senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
+    elif not diskList:
+        senderData.append('%s smartctl.info[ConfigStatus] "NODISKS"' % (host))   # if no disks were found
+    else:
+        senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
+
+    link = r'https://github.com/nobodysu/zabbix-smartmontools/issues'
+    processData(senderData, jsonData, config['agentConf'], config['senderPyPath'], config['senderPath'], host, link) 
