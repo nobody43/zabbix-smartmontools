@@ -27,7 +27,7 @@ class TestGetAllDisks(unittest.TestCase):
         da0_output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
-        config = smartctl_lld.parseConfig(None)
+        config = smartctl_lld.parseConfig("test/example/empty")
         r = smartctl_lld.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
         self.assertEqual(r,
             ([{'{#DDRIVESTATUS}': 'da0'}, {'{#DISKID}': 'da0'}, {'{#DISKIDSAS}': 'da0'}],
@@ -61,7 +61,7 @@ class TestGetAllDisks(unittest.TestCase):
             '-a /dev/da0 -d auto': da0_output,
             '-a /dev/da1 -d auto': da1_output,
         })
-        config = smartctl_lld.parseConfig(None)
+        config = smartctl_lld.parseConfig("test/example/empty")
         config['skipDuplicates'] = True
         r = smartctl_lld.getAllDisks(config, "myhost", "getverb", [
             "/dev/da0 -d scsi",
@@ -99,7 +99,7 @@ class TestGetAllDisks(unittest.TestCase):
         da0_output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
-        config = smartctl_lld.parseConfig(None)
+        config = smartctl_lld.parseConfig("test/example/empty")
         config['mode'] = 'serial'
         r = smartctl_lld.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
         self.assertEqual(r,
@@ -133,7 +133,7 @@ class TestGetSmart(unittest.TestCase):
         output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': output})
-        config = smartctl_lld.parseConfig(None)
+        config = smartctl_lld.parseConfig("test/example/empty")
         r = smartctl_lld.getSmart(config, "myhost", "getverb", "/dev/da0 -d scsi ")
         self.assertEqual(r, expected)
 
@@ -200,7 +200,7 @@ class TestParseConfig(unittest.TestCase):
 class TestScan(unittest.TestCase):
     def runtest(self, output, expected_disks, patchCheckOutput):
         patchCheckOutput.side_effect = mock_smartctl({'--scan': output})
-        config = smartctl_lld.parseConfig(None)
+        config = smartctl_lld.parseConfig("test/example/empty")
         (error, disks) = smartctl_lld.scanDisks(config, "getverb")
         self.assertEqual(error, "")
         self.assertEqual(disks, expected_disks)
