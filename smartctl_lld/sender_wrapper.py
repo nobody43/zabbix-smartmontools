@@ -147,15 +147,6 @@ def clearDiskTypeStr(s):
     return s
 
 
-def removeQuotes(s):
-    quotes = ('\'', '"')
-
-    for i in quotes:
-        s = s.replace(i, '')
-
-    return s
-
-
 def sanitizeStr(s):
     '''Sanitizes provided string in sequential order.'''
     stopChars = (
