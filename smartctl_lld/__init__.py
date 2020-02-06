@@ -375,12 +375,12 @@ def parseConfig(path=None):
         sender_py_path = "%s/scripts/sender_wrapper.py" % zabbixdir
         if not path:
             path = "%s/zabbix-smartmontools.conf" % zabbixdir
-    elif os.platform == 'win32':
-        agent_conf = 'C:\zabbix_agentd.conf'
-        sender_path = "C:\zabbix-agent\bin\win32\zabbix_sender.exe"
-        sender_py_path = "C:\zabbix-agent\scripts\sender_wrapper.py"
+    elif sys.platform == 'win32':
+        agent_conf = r'C:\zabbix_agentd.conf'
+        sender_path = r"C:\zabbix-agent\bin\win32\zabbix_sender.exe"
+        sender_py_path = r"C:\zabbix-agent\scripts\sender_wrapper.py"
         if not path:
-            path = "C:\zabbix-agent\zabbix-smartmontools.conf"
+            path = r"C:\zabbix-agent\zabbix-smartmontools.conf"
     else:
         raise NotImplementedError
     config = configparser.ConfigParser()
