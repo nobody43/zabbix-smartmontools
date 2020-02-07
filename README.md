@@ -53,7 +53,7 @@ sudo python3 setup.py install
 sudo install -m 755 scripts/smartctl-lld.py /etc/zabbix/scripts/
 sudo install -m 440 Linux/sudoers.d/zabbix /etc/sudoers.d/
 sudo install -m 644 zabbix-smartmontools.conf /etc/zabbix/
-sudo install -m 644 Linux/zabbix_agentd.d/userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.d/
+sudo install -m 644 Linux/zabbix_agentd.d/userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.conf.d/
 ```
 
 #### FreeBSD
@@ -68,9 +68,9 @@ sudo install -m 644 BSD/zabbix_agentd.conf.d/userparameter_smartctl.conf /usr/lo
 #### Windows
 ```cmd
 python setup.py install
-move scripts/smartctl-lld.py C:\zabbix-agent\scripts\
+move scripts\smartctl-lld.py C:\zabbix-agent\scripts\
 move zabbix-smartmontools.conf C:\zabbix-agent\
-move Win/zabbix_agentd.conf.d/userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
+move Win\zabbix_agentd.conf.d\userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
 ```
 Install `python3` for [all users](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
 <br />
