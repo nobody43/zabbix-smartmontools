@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import subprocess
 import re
@@ -30,6 +31,57 @@ def send(fetchMode, agentConf, senderPath, timeout, senderDataNStr):
         sys.exit(1)
 
     senderProc.communicate(input=senderDataNStr)
+
+
+# zabbix-smartmontools works by sending discovery data by a normal pull request,
+# but by pushing smart statistics with zabbix_sender.  Push statistics could
+# theoretically be sent at any time, but we choose to do it immediately
+# after discovery.
+#
+# fork_and_send creates a child process to send push statistics.  That way
+# the parent process can swiftly reply with discovery info while the child
+# gathers and sends detailed stats.
+def fork_and_send(fetchMode, agentConf, senderPath, timeout, senderDataNStr):
+    if fetchMode == "get":
+        # Must flush prior to fork, otherwise parent and child will both
+        # flush the same data and zabbix_agentd will see it twice.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        parentpid = os.getpid()
+        pid = os.fork()
+        if pid == 0:
+            # In child
+            stdout = sys.stdout.fileno()
+            sys.stdout.close()
+            os.close(stdout)
+            stderr = sys.stderr.fileno()
+            sys.stderr.close()
+            os.close(stderr)
+            stdin = sys.stdin.fileno()
+            sys.stdin.close()
+            os.close(stdin)
+
+            # Wait for the parent process to complete so the zabbix server
+            # will have the latest discovery info.
+            while True:
+                try:
+                    os.kill(parentpid, 0)
+                except ProcessLookupError:
+                    # parent has exited
+                    break
+                except Exception:
+                    # Most likely, parent has exited, PID has been re-assigned,
+                    # and we lack permission to signal that PID.
+                    break
+                # parent is still running; loop
+                sleep(0.125)
+
+            send(fetchMode, agentConf, senderPath, timeout, senderDataNStr)
+        else:
+            # In parent; simply return
+            True
+    else:
+        send(fetchMode, agentConf, senderPath, timeout, senderDataNStr)
 
 
 def fail_ifNot_Py3():
@@ -117,7 +169,7 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
     if fetchMode_ == 'get':
         print(dumps({"data": jsonData_}, indent=4))   # print data gathered for LLD
 
-        send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
+        fork_and_send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
 
     elif fetchMode_ == 'getverb':
         displayVersions(agentConf_, senderPath_)
@@ -127,7 +179,7 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
         print('\n')
         print(senderDataNStr)
 
-        send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
+        fork_and_send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
 
     else:
         print(sys.argv[0] + ": Not supported. Use 'get' or 'getverb'.")
