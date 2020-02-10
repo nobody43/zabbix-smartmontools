@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import subprocess
 import re
@@ -14,18 +15,13 @@ def isWindows():
         return False
 
         
-def send():
+def send(fetchMode, agentConf, senderPath, senderDataNStr):
 
     if fetchMode == 'get':
-        sleep(timeout)   # wait for LLD to be processed by server
         senderProc = subprocess.Popen([senderPath, '-c', agentConf, '-i', '-'],
                                       stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
 
     elif fetchMode == 'getverb':
-        print('\n  Note: the sender will fail if server did not gather LLD previously.')
-        print('\n  Data sent to zabbix sender:')
-        print('\n')
-        print(senderDataNStr)
         senderProc = subprocess.Popen([senderPath, '-vv', '-c', agentConf, '-i', '-'],
                                       stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
 
@@ -36,21 +32,57 @@ def send():
     senderProc.communicate(input=senderDataNStr)
 
 
-if __name__ == '__main__':
-    fetchMode = sys.argv[1]
+# zabbix-smartmontools works by sending discovery data by a normal pull request,
+# but by pushing smart statistics with zabbix_sender.  Push statistics could
+# theoretically be sent at any time, but we choose to do it immediately
+# after discovery.
+#
+# fork_and_send creates a child process to send push statistics.  That way
+# the parent process can swiftly reply with discovery info while the child
+# gathers and sends detailed stats.
+def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
+    if fetchMode == "get":
+        # Must flush prior to fork, otherwise parent and child will both
+        # flush the same data and zabbix_agentd will see it twice.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        parentpid = os.getpid()
+        pid = os.fork()
+        if pid == 0:
+            # In child
+            stdout = sys.stdout.fileno()
+            sys.stdout.close()
+            os.close(stdout)
+            stderr = sys.stderr.fileno()
+            sys.stderr.close()
+            os.close(stderr)
+            stdin = sys.stdin.fileno()
+            sys.stdin.close()
+            os.close(stdin)
 
-    agentConf = sys.argv[2]
-    senderPath = sys.argv[3]
-    timeout = int(sys.argv[4])
-    senderDataNStr = sys.argv[5]
+            # Wait for the parent process to complete so the zabbix server
+            # will have the latest discovery info.
+            while True:
+                try:
+                    os.kill(parentpid, 0)
+                except ProcessLookupError:
+                    # parent has exited
+                    break
+                except Exception:
+                    # Most likely, parent has exited, PID has been re-assigned,
+                    # and we lack permission to signal that PID.
+                    break
+                # parent is still running; loop
+                sleep(0.125)
 
-    if isWindows():
-        timeout = 0
+            send(fetchMode, agentConf, senderPath, senderDataNStr)
+        else:
+            # In parent; simply return
+            True
+    else:
+        send(fetchMode, agentConf, senderPath, senderDataNStr)
 
-    send()
 
-
-# External
 def fail_ifNot_Py3():
     '''Terminate if not using python3.'''
     if sys.version_info.major != 3:
@@ -99,15 +131,6 @@ def readConfig(config):
         else:
             print("Could not find 'ServerActive' setting in config!")
 
-        timeout = re.search(r'^(?:\s+)?(Timeout(?:\s+)?\=(?:\s+)?(\d+))(?:\s+)?$', text, re.M)
-        if timeout:
-            print(timeout.group(1))
-
-            if int(timeout.group(2)) < 10:
-                print("'Timeout' setting is too low for this script!")
-        else:
-            print("Could not find 'Timeout' manual setting in config!\nDefault value is too low for this script.")
-
     except:
         print('  Could not process config file:\n' + config)
     finally:
@@ -125,7 +148,7 @@ def chooseDevnull():
 
 
 def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
-                timeout_, host_, issuesLink_, sendStatusKey_='UNKNOWN'):
+                host_, issuesLink_, sendStatusKey_='UNKNOWN'):
     '''Compose data and try to send it.'''
     DEVNULL = chooseDevnull()
 
@@ -136,46 +159,17 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
     if fetchMode_ == 'get':
         print(dumps({"data": jsonData_}, indent=4))   # print data gathered for LLD
 
-        # spawn new process and regain shell control immediately (on Win 'sender_wrapper.py' will not wait)
-        try:
-            cmd = [sys.executable, senderPyPath_, fetchMode_, agentConf_, senderPath_, str(timeout_), senderDataNStr]
-        
-            subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=DEVNULL, stderr=DEVNULL, close_fds=(not isWindows()))
-
-        except OSError as e:
-            if e.args[0] == 7:
-                subprocess.call([senderPath_, '-c', agentConf_, '-s', host_, '-k', sendStatusKey_, '-o', 'HUGEDATA'])
-            else:
-                subprocess.call([senderPath_, '-c', agentConf_, '-s', host_, '-k', sendStatusKey_, '-o', 'SEND_OS_ERROR'])
-
-        except:
-            subprocess.call(    [senderPath_, '-c', agentConf_, '-s', host_, '-k', sendStatusKey_, '-o', 'UNKNOWN_SEND_ERROR'])
+        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
 
     elif fetchMode_ == 'getverb':
         displayVersions(agentConf_, senderPath_)
         readConfig(agentConf_)
+        print('\n  Note: the sender will fail if server did not gather LLD previously.')
+        print('\n  Data sent to zabbix sender:')
+        print('\n')
+        print(senderDataNStr)
 
-        #for i in range(135000): senderDataNStr = senderDataNStr + '0'   # HUGEDATA testing
-        try:
-            # do not detach if in verbose mode, also skips timeout in 'sender_wrapper.py'
-            cmd = [sys.executable, senderPyPath_, 'getverb', agentConf_, senderPath_, str(timeout_), senderDataNStr]
-            
-            subprocess.Popen(cmd, stdin=subprocess.PIPE, close_fds=(not isWindows()))
-
-        except OSError as e:
-            if e.args[0] == 7:   # almost unreachable in case of this script
-                print(sys.argv[0] + ': Could not send anything. Argument list or filepath too long. (HUGEDATA)')   # FileNotFoundError: [WinError 206]
-            else:
-                print(sys.argv[0] + ': Something went wrong. (SEND_OS_ERROR)')
-
-            raise
-
-        except:
-            print(sys.argv[0] + ': Something went wrong. (UNKNOWN_SEND_ERROR)')
-            raise
-
-        finally:
-            print('  Please report any issues or missing features to:\n%s\n' % issuesLink_)
+        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
 
     else:
         print(sys.argv[0] + ": Not supported. Use 'get' or 'getverb'.")
@@ -191,15 +185,6 @@ def clearDiskTypeStr(s):
         s = s.replace(i, '')
 
     s = s.strip()
-
-    return s
-
-
-def removeQuotes(s):
-    quotes = ('\'', '"')
-
-    for i in quotes:
-        s = s.replace(i, '')
 
     return s
 

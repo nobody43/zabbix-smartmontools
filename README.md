@@ -81,7 +81,6 @@ Then you need to include your zabbix conf folder in `zabbix_agentd.conf`, like t
 ```conf
 Include=/usr/local/etc/zabbix/zabbix_agentd.conf.d/
 ```
-Also its recomended to add at least `Timeout=10` to config file to allow drives spun up in rare cases.
 
 That's all for Windows. For others run the following to finish configuration:
 ```bash
