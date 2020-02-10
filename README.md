@@ -46,7 +46,6 @@ yum install zabbix-get   # testing
 ```
 
 ### Placing the files
-Note: `sender_wrapper.py` is shared among multiple projects and have the same contents - it can be overwritten.
 #### Linux
 ```bash
 sudo python3 setup.py install
