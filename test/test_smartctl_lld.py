@@ -175,7 +175,6 @@ class TestParseConfig(unittest.TestCase):
         self.assertEqual(config['mode'], 'device')
         self.assertTrue(config['skipDuplicates'])
         self.assertEqual(config['ctlPath'], 'smartctl')
-        self.assertEqual(config['timeout'], 80)
         self.assertFalse('Disks' in config)
 
     def test_disk_list(self):
@@ -194,7 +193,6 @@ class TestParseConfig(unittest.TestCase):
                 '/etc/zabbix/scripts/sender_wrapper.py')
         self.assertEqual(config['agentConf'], '/etc/zabbix/zabbix_agentd.conf')
         self.assertEqual(config['senderPath'], 'zabbix_sender')
-        self.assertEqual(config['timeout'], 80)
         self.assertFalse('Disks' in config)
 
 class TestScan(unittest.TestCase):

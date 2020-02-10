@@ -15,10 +15,9 @@ def isWindows():
         return False
 
         
-def send(fetchMode, agentConf, senderPath, timeout, senderDataNStr):
+def send(fetchMode, agentConf, senderPath, senderDataNStr):
 
     if fetchMode == 'get':
-        sleep(timeout)   # wait for LLD to be processed by server
         senderProc = subprocess.Popen([senderPath, '-c', agentConf, '-i', '-'],
                                       stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
 
@@ -41,7 +40,7 @@ def send(fetchMode, agentConf, senderPath, timeout, senderDataNStr):
 # fork_and_send creates a child process to send push statistics.  That way
 # the parent process can swiftly reply with discovery info while the child
 # gathers and sends detailed stats.
-def fork_and_send(fetchMode, agentConf, senderPath, timeout, senderDataNStr):
+def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
     if fetchMode == "get":
         # Must flush prior to fork, otherwise parent and child will both
         # flush the same data and zabbix_agentd will see it twice.
@@ -76,12 +75,12 @@ def fork_and_send(fetchMode, agentConf, senderPath, timeout, senderDataNStr):
                 # parent is still running; loop
                 sleep(0.125)
 
-            send(fetchMode, agentConf, senderPath, timeout, senderDataNStr)
+            send(fetchMode, agentConf, senderPath, senderDataNStr)
         else:
             # In parent; simply return
             True
     else:
-        send(fetchMode, agentConf, senderPath, timeout, senderDataNStr)
+        send(fetchMode, agentConf, senderPath, senderDataNStr)
 
 
 def fail_ifNot_Py3():
@@ -132,15 +131,6 @@ def readConfig(config):
         else:
             print("Could not find 'ServerActive' setting in config!")
 
-        timeout = re.search(r'^(?:\s+)?(Timeout(?:\s+)?\=(?:\s+)?(\d+))(?:\s+)?$', text, re.M)
-        if timeout:
-            print(timeout.group(1))
-
-            if int(timeout.group(2)) < 10:
-                print("'Timeout' setting is too low for this script!")
-        else:
-            print("Could not find 'Timeout' manual setting in config!\nDefault value is too low for this script.")
-
     except:
         print('  Could not process config file:\n' + config)
     finally:
@@ -158,7 +148,7 @@ def chooseDevnull():
 
 
 def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
-                timeout_, host_, issuesLink_, sendStatusKey_='UNKNOWN'):
+                host_, issuesLink_, sendStatusKey_='UNKNOWN'):
     '''Compose data and try to send it.'''
     DEVNULL = chooseDevnull()
 
@@ -169,7 +159,7 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
     if fetchMode_ == 'get':
         print(dumps({"data": jsonData_}, indent=4))   # print data gathered for LLD
 
-        fork_and_send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
+        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
 
     elif fetchMode_ == 'getverb':
         displayVersions(agentConf_, senderPath_)
@@ -179,7 +169,7 @@ def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
         print('\n')
         print(senderDataNStr)
 
-        fork_and_send(fetchMode_, agentConf_, senderPath_, timeout_, senderDataNStr)
+        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
 
     else:
         print(sys.argv[0] + ": Not supported. Use 'get' or 'getverb'.")

@@ -33,4 +33,4 @@ if __name__ == '__main__':
         senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
 
     link = r'https://github.com/nobodysu/zabbix-smartmontools/issues'
-    processData(senderData, jsonData, config['agentConf'], config['senderPyPath'], config['senderPath'], config['timeout'], host, link)
+    processData(senderData, jsonData, config['agentConf'], config['senderPyPath'], config['senderPath'], host, link)

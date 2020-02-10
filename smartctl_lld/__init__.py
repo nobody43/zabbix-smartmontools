@@ -395,7 +395,6 @@ def parseConfig(path=None):
         'senderPyPath': config.get('settings', 'senderPyPath',
             fallback=sender_py_path),
         'agentConf': config.get('settings', 'agentConf', fallback=agent_conf),
-        'timeout': config.getint('settings', 'timeout', fallback=80)
     }
     if config.has_section('Disks'):
         d['Disks'] = ["%s %s" % (k, v) for (k, v) in config['Disks'].items()]
