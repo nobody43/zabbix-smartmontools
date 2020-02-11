@@ -147,8 +147,7 @@ def chooseDevnull():
     return DEVNULL
 
 
-def processData(senderData_, jsonData_, agentConf_, senderPath_, host_,
-        issuesLink_, sendStatusKey_='UNKNOWN'):
+def processData(senderData_, jsonData_, agentConf_, senderPath_, host_):
     '''Compose data and try to send it.'''
     DEVNULL = chooseDevnull()
 
