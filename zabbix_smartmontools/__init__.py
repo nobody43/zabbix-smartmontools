@@ -2,118 +2,132 @@
 
 import configparser
 import glob
+from json import dumps
 import ntpath
 import os
 import re
 from shlex import split
 import subprocess
 import sys
+from time import sleep
 
-from zabbix_smartmontools.sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr)
+
+def clearDiskTypeStr(s):
+    stopWords = (
+        (' -d atacam'), (' -d scsi'), (' -d ata'), (' -d sat'), (' -d nvme'), 
+        (' -d sas'),    (' -d csmi'), (' -d usb'), (' -d pd'),  (' -d auto'),
+    )
+
+    for i in stopWords:
+        s = s.replace(i, '')
+
+    s = s.strip()
+
+    return s
 
 
-def scanDisks(config, command):
-    '''Determines available disks. Can be skipped.'''
+def displayVersions(config, senderPath_):
+    '''Display python and sender versions.'''
+    print('  Python version:\n', sys.version)
+    
     try:
-        p = subprocess.check_output([config['ctlPath'], '--scan'], universal_newlines=True)   # scan the disks
-        error = ''
-    except OSError as e:
-        p = ''
+        print('\n  Sender version:\n', subprocess.check_output([senderPath_, '-V']).decode())
+    except:
+        print('Could not run zabbix_sender.')
 
-        if e.args[0] == 2:
-            error = 'SCAN_OS_NOCMD'
+    print()
+
+
+# zabbix-smartmontools works by sending discovery data by a normal pull request,
+# but by pushing smart statistics with zabbix_sender.  Push statistics could
+# theoretically be sent at any time, but we choose to do it immediately
+# after discovery.
+#
+# fork_and_send creates a child process to send push statistics.  That way
+# the parent process can swiftly reply with discovery info while the child
+# gathers and sends detailed stats.
+def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
+    # Don't fork on Windows, because Windows doesn't have fork
+    if fetchMode == "get" and not sys.platform == 'win32':
+        # Must flush prior to fork, otherwise parent and child will both
+        # flush the same data and zabbix_agentd will see it twice.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        parentpid = os.getpid()
+        pid = os.fork()
+        if pid == 0:
+            # In child
+            stdout = sys.stdout.fileno()
+            sys.stdout.close()
+            os.close(stdout)
+            stderr = sys.stderr.fileno()
+            sys.stderr.close()
+            os.close(stderr)
+            stdin = sys.stdin.fileno()
+            sys.stdin.close()
+            os.close(stdin)
+
+            # Wait for the parent process to complete so the zabbix server
+            # will have the latest discovery info.
+            while True:
+                try:
+                    os.kill(parentpid, 0)
+                except ProcessLookupError:
+                    # parent has exited
+                    break
+                except Exception:
+                    # Most likely, parent has exited, PID has been re-assigned,
+                    # and we lack permission to signal that PID.
+                    break
+                # parent is still running; loop
+                sleep(0.125)
+
+            send(fetchMode, agentConf, senderPath, senderDataNStr)
         else:
-            error = 'SCAN_OS_ERROR'
-    except Exception as e:
-        try:   # extra safe
-            p = e.output
-        except:
-            p = ''
-
-        error = 'SCAN_UNKNOWN_ERROR'
-        if command == 'getverb':
-            raise
-
-    disks = re.findall(r'^(/dev/[^#]+)', p, re.M)   # determine full device names and types
-
-    return error, disks
-
-
-def getSmartSAS(host, p, dR):
-    sender = []
-    json = []
-
-    # SAS info
-    revisionRe = re.search(r'^Revision:\s+(.+)$|^Version:\s+(.+)$', p, re.M | re.I)
-    if revisionRe:
-        if revisionRe.group(1):
-            revisionResult = revisionRe.group(1)
-        elif revisionRe.group(2):
-            revisionResult = revisionRe.group(2)
-        else:
-            revisionResult = 'UNKNOWN'
-
-        sender.append('%s smartctl.info[%s,revision] "%s"' % (host, dR, revisionResult))
-
-    complianceRe = re.search(r'^Compliance:\s+(.+)$', p, re.M | re.I)
-    if complianceRe:
-        sender.append('%s smartctl.info[%s,compliance] "%s"' % (host, dR, complianceRe.group(1)))
-
-    manufacturedRe = re.search(r'^Manufactured in week (\d+) of year (\d+)', p, re.M | re.I)
-    if manufacturedRe:
-        sender.append('%s smartctl.info[%s,manufacturedYear] "%s"' % (host, dR, manufacturedRe.group(2)))
-
-    # SAS values
-    loadUnloadRe = re.search(r'^Accumulated load-unload cycles:\s+(\d+)', p, re.M | re.I)
-    if loadUnloadRe:
-        sender.append('%s smartctl.value[%s,loadUnload] "%s"' % (host, dR, loadUnloadRe.group(1)))
- 
-        loadUnloadMaxRe = re.search(r'^Specified load-unload count over device lifetime:\s+(\d+)', p, re.M | re.I)
-        if loadUnloadMaxRe:
-            sender.append('%s smartctl.value[%s,loadUnloadMax] "%s"' % (host, dR, loadUnloadMaxRe.group(1)))
-
-    startStopRe = re.search(r'^Accumulated start-stop cycles:\s+(\d+)|^Current start stop count:\s+(\d+)', p, re.M | re.I)
-    if startStopRe:
-        if startStopRe.group(1):
-            startStopResult = startStopRe.group(1)
-        elif startStopRe.group(2):
-            startStopResult = startStopRe.group(2)
-        else:
-            startStopResult = 'UNKNOWN'
-
-        sender.append('%s smartctl.value[%s,startStop] "%s"' % (host, dR, startStopResult))
-
-        startStopMaxRe = re.search(r'^Recommended maximum start stop count:\s+(\d+)|^Specified cycle count over device lifetime:\s+(\d+)', p, re.M | re.I)
-        if startStopMaxRe:
-            if startStopMaxRe.group(1):
-                startStopMaxResult = startStopMaxRe.group(1)
-            elif startStopMaxRe.group(2):
-                startStopMaxResult = startStopMaxRe.group(2)
-            else:
-                startStopMaxResult = 'UNKNOWN'
-
-            sender.append('%s smartctl.value[%s,startStopMax] "%s"' % (host, dR, startStopMaxResult))
-
-    defectsRe = re.search(r'^Elements in grown defect list:\s+(\d+)', p, re.M | re.I)
-    if defectsRe:
-        sender.append('%s smartctl.value[%s,defects] "%s"' % (host, dR, defectsRe.group(1)))
-
-    poweredHoursRe = re.search(r'^number of hours powered up \=\s+(\d+)', p, re.M | re.I)
-    if poweredHoursRe:
-        sender.append('%s smartctl.value[%s,poweredHours] "%s"' % (host, dR, poweredHoursRe.group(1)))
-
-    nonMediumErrorsRe = re.search(r'^Non-medium error count:\s+(\d+)', p, re.M | re.I)
-    if nonMediumErrorsRe:
-        sender.append('%s smartctl.value[%s,nonMediumErrors] "%s"' % (host, dR, nonMediumErrorsRe.group(1)))
-
-    if sender:
-        error = False
+            # In parent; simply return
+            True
     else:
-        error = True
+        send(fetchMode, agentConf, senderPath, senderDataNStr)
 
-    json.append({'{#DISKIDSAS}':dR})
 
-    return error, sender, json
+def getAllDisks(config, host, command, diskList):
+    driveHeaders = []
+    jsonData = []
+    senderData = []
+    for d in diskList:   # cycle through disks
+        getSmart_Out = getSmart(config, host, command, d)
+        finalD = getSmart_Out[4][0]
+        origD = getSmart_Out[4][1]
+
+        # Check for smartctl binary-related errors (if disk scan was bypassed)
+        if getSmart_Out[0]:
+            configError = getSmart_Out[0]   # D_OS_NOCMD, D_OS_ERROR; may rewrite previous (similar) error
+            break   # fatal error
+
+        # Begin duplicate check if desired
+        if config['skipDuplicates']:
+            serialCurrent = getSmart_Out[3][0]
+            headerCurrent = getSmart_Out[3][1]
+
+            if serialCurrent and headerCurrent:   # if serial and secondary identifying data is found
+                duplicate = False
+                for s,h in driveHeaders:
+                    if s == serialCurrent and h == headerCurrent:
+                        senderData.append('%s smartctl.info[%s,DriveStatus] "DUPLICATE"' % (host, origD))
+                        jsonData.append({'{#DDRIVESTATUS}':origD})   # populate duplicate only with original drive ID
+                        duplicate = True
+                        break   # break from header check
+
+                if duplicate == True:
+                    continue   # continue to the next disk. other sender and json data is discarded
+
+                driveHeaders.append((serialCurrent, headerCurrent))   # add header info for current disk, only if it's not duplicate
+
+        # Add collected data
+        jsonData.append({'{#DDRIVESTATUS}':finalD})   # always populate 'DriveStatus' LLD
+        senderData.extend(getSmart_Out[1])
+        jsonData.extend(getSmart_Out[2])
+    return jsonData, senderData
 
 
 def getSmart(config, host, command, d):
@@ -302,6 +316,117 @@ def getSmart(config, host, command, d):
     return None, sender, json, (serial, driveHeader), (dR, dOrig)
 
 
+def getSmartSAS(host, p, dR):
+    sender = []
+    json = []
+
+    # SAS info
+    revisionRe = re.search(r'^Revision:\s+(.+)$|^Version:\s+(.+)$', p, re.M | re.I)
+    if revisionRe:
+        if revisionRe.group(1):
+            revisionResult = revisionRe.group(1)
+        elif revisionRe.group(2):
+            revisionResult = revisionRe.group(2)
+        else:
+            revisionResult = 'UNKNOWN'
+
+        sender.append('%s smartctl.info[%s,revision] "%s"' % (host, dR, revisionResult))
+
+    complianceRe = re.search(r'^Compliance:\s+(.+)$', p, re.M | re.I)
+    if complianceRe:
+        sender.append('%s smartctl.info[%s,compliance] "%s"' % (host, dR, complianceRe.group(1)))
+
+    manufacturedRe = re.search(r'^Manufactured in week (\d+) of year (\d+)', p, re.M | re.I)
+    if manufacturedRe:
+        sender.append('%s smartctl.info[%s,manufacturedYear] "%s"' % (host, dR, manufacturedRe.group(2)))
+
+    # SAS values
+    loadUnloadRe = re.search(r'^Accumulated load-unload cycles:\s+(\d+)', p, re.M | re.I)
+    if loadUnloadRe:
+        sender.append('%s smartctl.value[%s,loadUnload] "%s"' % (host, dR, loadUnloadRe.group(1)))
+
+        loadUnloadMaxRe = re.search(r'^Specified load-unload count over device lifetime:\s+(\d+)', p, re.M | re.I)
+        if loadUnloadMaxRe:
+            sender.append('%s smartctl.value[%s,loadUnloadMax] "%s"' % (host, dR, loadUnloadMaxRe.group(1)))
+
+    startStopRe = re.search(r'^Accumulated start-stop cycles:\s+(\d+)|^Current start stop count:\s+(\d+)', p, re.M | re.I)
+    if startStopRe:
+        if startStopRe.group(1):
+            startStopResult = startStopRe.group(1)
+        elif startStopRe.group(2):
+            startStopResult = startStopRe.group(2)
+        else:
+            startStopResult = 'UNKNOWN'
+
+        sender.append('%s smartctl.value[%s,startStop] "%s"' % (host, dR, startStopResult))
+
+        startStopMaxRe = re.search(r'^Recommended maximum start stop count:\s+(\d+)|^Specified cycle count over device lifetime:\s+(\d+)', p, re.M | re.I)
+        if startStopMaxRe:
+            if startStopMaxRe.group(1):
+                startStopMaxResult = startStopMaxRe.group(1)
+            elif startStopMaxRe.group(2):
+                startStopMaxResult = startStopMaxRe.group(2)
+            else:
+                startStopMaxResult = 'UNKNOWN'
+
+            sender.append('%s smartctl.value[%s,startStopMax] "%s"' % (host, dR, startStopMaxResult))
+
+    defectsRe = re.search(r'^Elements in grown defect list:\s+(\d+)', p, re.M | re.I)
+    if defectsRe:
+        sender.append('%s smartctl.value[%s,defects] "%s"' % (host, dR, defectsRe.group(1)))
+
+    poweredHoursRe = re.search(r'^number of hours powered up \=\s+(\d+)', p, re.M | re.I)
+    if poweredHoursRe:
+        sender.append('%s smartctl.value[%s,poweredHours] "%s"' % (host, dR, poweredHoursRe.group(1)))
+
+    nonMediumErrorsRe = re.search(r'^Non-medium error count:\s+(\d+)', p, re.M | re.I)
+    if nonMediumErrorsRe:
+        sender.append('%s smartctl.value[%s,nonMediumErrors] "%s"' % (host, dR, nonMediumErrorsRe.group(1)))
+
+    if sender:
+        error = False
+    else:
+        error = True
+
+    json.append({'{#DISKIDSAS}':dR})
+
+    return error, sender, json
+
+
+def isWindows():
+    if sys.platform == 'win32':
+        return True
+    else:
+        return False
+
+
+def main():
+    cmd = sys.argv[1]
+    host = '"%s"' % (sys.argv[2])
+    config = parseConfig()
+
+    configError = None
+    if not 'Disks' in config:
+        scanDisks_Out = scanDisks(config, cmd)   # scan the disks
+
+        configError = scanDisks_Out[0]   # SCAN_OS_NOCMD, SCAN_OS_ERROR, SCAN_UNKNOWN_ERROR
+        diskList = scanDisks_Out[1]
+    else:
+        diskList = config['Disks']
+
+    jsonData, senderData = getAllDisks(config, host, cmd, diskList)
+
+    if configError:
+        senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
+    elif not diskList:
+        senderData.append('%s smartctl.info[ConfigStatus] "NODISKS"' % (host))   # if no disks were found
+    else:
+        senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
+
+    link = r'https://github.com/nobodysu/zabbix-smartmontools/issues'
+    processData(senderData, jsonData, config['agentConf'], config['senderPath'], host)
+
+
 def whyNoSmart(p, dR):
     sender = []
 
@@ -317,45 +442,6 @@ def whyNoSmart(p, dR):
 
     return sender
 
-
-def getAllDisks(config, host, command, diskList):
-    driveHeaders = []
-    jsonData = []
-    senderData = []
-    for d in diskList:   # cycle through disks
-        getSmart_Out = getSmart(config, host, command, d)
-        finalD = getSmart_Out[4][0]
-        origD = getSmart_Out[4][1]
-
-        # Check for smartctl binary-related errors (if disk scan was bypassed)
-        if getSmart_Out[0]:
-            configError = getSmart_Out[0]   # D_OS_NOCMD, D_OS_ERROR; may rewrite previous (similar) error
-            break   # fatal error
-
-        # Begin duplicate check if desired
-        if config['skipDuplicates']:
-            serialCurrent = getSmart_Out[3][0]
-            headerCurrent = getSmart_Out[3][1]
-
-            if serialCurrent and headerCurrent:   # if serial and secondary identifying data is found
-                duplicate = False
-                for s,h in driveHeaders:
-                    if s == serialCurrent and h == headerCurrent:
-                        senderData.append('%s smartctl.info[%s,DriveStatus] "DUPLICATE"' % (host, origD))
-                        jsonData.append({'{#DDRIVESTATUS}':origD})   # populate duplicate only with original drive ID
-                        duplicate = True
-                        break   # break from header check
-
-                if duplicate == True:
-                    continue   # continue to the next disk. other sender and json data is discarded
-
-                driveHeaders.append((serialCurrent, headerCurrent))   # add header info for current disk, only if it's not duplicate
-
-        # Add collected data
-        jsonData.append({'{#DDRIVESTATUS}':finalD})   # always populate 'DriveStatus' LLD
-        senderData.extend(getSmart_Out[1])
-        jsonData.extend(getSmart_Out[2])
-    return jsonData, senderData
 
 # Read the config file and return a dict of settings
 def parseConfig(path=None):
@@ -407,27 +493,122 @@ def parseConfig(path=None):
 
     return d
 
-def main():
-    cmd = sys.argv[1]
-    host = '"%s"' % (sys.argv[2])
-    config = parseConfig()
 
-    configError = None
-    if not 'Disks' in config:
-        scanDisks_Out = scanDisks(config, cmd)   # scan the disks
+def processData(senderData_, jsonData_, agentConf_, senderPath_, host_):
+    '''Compose data and try to send it.'''
 
-        configError = scanDisks_Out[0]   # SCAN_OS_NOCMD, SCAN_OS_ERROR, SCAN_UNKNOWN_ERROR
-        diskList = scanDisks_Out[1]
+    fetchMode_ = sys.argv[1]
+    senderDataNStr = '\n'.join(senderData_)   # items for zabbix sender separated by newlines
+
+    # pass senderDataNStr to sender_wrapper.py:
+    if fetchMode_ == 'get':
+        print(dumps({"data": jsonData_}, indent=4))   # print data gathered for LLD
+
+        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
+
+    elif fetchMode_ == 'getverb':
+        displayVersions(agentConf_, senderPath_)
+        readConfig(agentConf_)
+        print('\n  Note: the sender will fail if server did not gather LLD previously.')
+        print('\n  Data sent to zabbix sender:')
+        print('\n')
+        print(senderDataNStr)
+
+        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
+
     else:
-        diskList = config['Disks']
+        print(sys.argv[0] + ": Not supported. Use 'get' or 'getverb'.")
 
-    jsonData, senderData = getAllDisks(config, host, cmd, diskList)
 
-    if configError:
-        senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
-    elif not diskList:
-        senderData.append('%s smartctl.info[ConfigStatus] "NODISKS"' % (host))   # if no disks were found
+def readConfig(config):
+    '''Read and display important config values for debug.'''
+    try:
+        f = open(config, 'r')
+        text = f.read()
+        f.close()
+
+        print("  Config's main settings:")
+        server = re.search(r'^(?:\s+)?(Server(?:\s+)?\=(?:\s+)?.+)$', text, re.M)
+        if server:
+            print(server.group(1))
+        else:
+            print("Could not find 'Server' setting in config!")
+
+        serverActive = re.search(r'^(?:\s+)?(ServerActive(?:\s+)?\=(?:\s+)?.+)$', text, re.M)
+        if serverActive:
+            print(serverActive.group(1))
+        else:
+            print("Could not find 'ServerActive' setting in config!")
+
+    except:
+        print('  Could not process config file:\n' + config)
+    finally:
+        print()
+
+
+def sanitizeStr(s):
+    '''Sanitizes provided string in sequential order.'''
+    stopChars = (
+        ('/dev/', ''), (' -d', ''),
+        ('!', '_'), (',', '_'), ('[', '_'), ('~', '_'), ('  ', '_'),
+        (']', '_'), ('+', '_'), ('/', '_'), ('\\', '_'), ('\'', '_'),
+        ('`', '_'), ('@', '_'), ('#', '_'), ('$', '_'), ('%', '_'),
+        ('^', '_'), ('&', '_'), ('*', '_'), ('(', '_'), (')', '_'),
+        ('{', '_'), ('}', '_'), ('=', '_'), (':', '_'), (';', '_'),
+        ('"', '_'), ('?', '_'), ('<', '_'), ('>', '_'), (' ', '_'),
+    )
+
+    for i, j in stopChars:
+        s = s.replace(i, j)
+
+    s = s.strip()
+
+    return s
+
+
+def scanDisks(config, command):
+    '''Determines available disks. Can be skipped.'''
+    try:
+        p = subprocess.check_output([config['ctlPath'], '--scan'], universal_newlines=True)   # scan the disks
+        error = ''
+    except OSError as e:
+        p = ''
+
+        if e.args[0] == 2:
+            error = 'SCAN_OS_NOCMD'
+        else:
+            error = 'SCAN_OS_ERROR'
+    except Exception as e:
+        try:   # extra safe
+            p = e.output
+        except:
+            p = ''
+
+        error = 'SCAN_UNKNOWN_ERROR'
+        if command == 'getverb':
+            raise
+
+    disks = re.findall(r'^(/dev/[^#]+)', p, re.M)   # determine full device names and types
+
+    return error, disks
+
+
+def send(fetchMode, agentConf, senderPath, senderDataNStr):
+
+    if fetchMode == 'get':
+        devnull = open(os.devnull, 'w')
+        senderProc = subprocess.Popen([senderPath, '-c', agentConf, '-i', '-'],
+                                      stdin=subprocess.PIPE,
+                                      stdout=devnull,
+                                      universal_newlines=True,
+                                      close_fds=(not isWindows()))
+
+    elif fetchMode == 'getverb':
+        senderProc = subprocess.Popen([senderPath, '-vv', '-c', agentConf, '-i', '-'],
+                                      stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
+
     else:
-        senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
+        print(sys.argv[0] + " : Not supported. Use 'get' or 'getverb'.")
+        sys.exit(1)
 
-    processData(senderData, jsonData, config['agentConf'], config['senderPath'], host)
+    senderProc.communicate(input=senderDataNStr)
