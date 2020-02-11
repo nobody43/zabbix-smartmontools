@@ -7,7 +7,7 @@ from shlex import split
 import subprocess
 import sys
 
-from smartctl_lld.sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
+from zabbix_smartmontools.sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
 
 
 def scanDisks(config, command):

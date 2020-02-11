@@ -49,16 +49,16 @@ yum install zabbix-get   # testing
 #### Linux
 ```bash
 sudo python3 setup.py install
-sudo cp /usr/share/doc/examples/smartctl-lld/sudoers.d/zabbix /etc/sudoers.d/zabbix
-sudo cp /usr/share/doc/examples/smartctl-lld/zabbix-smartmontools.conf /etc
+sudo cp /usr/share/doc/examples/zabbix-smartmontools/sudoers.d/zabbix /etc/sudoers.d/zabbix
+sudo cp /usr/share/doc/examples/zabbix-smartmontools/zabbix-smartmontools.conf /etc
 sudo install -m 644 Linux/zabbix_agentd.d/userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.conf.d/
 ```
 
 #### FreeBSD
 ```bash
 sudo python3 setup.py install
-sudo cp /usr/local/share/examples/smartctl-lld/sudoers.d/zabbix /usr/local/etc/sudoers.d/zabbix
-sudo cp /usr/local/share/examples/smartctl-lld/zabbix-smartmontools.conf /usr/local/etc
+sudo cp /usr/local/share/examples/zabbix-smartmontools/sudoers.d/zabbix /usr/local/etc/sudoers.d/zabbix
+sudo cp /usr/local/share/examples/zabbix-smartmontools/zabbix-smartmontools.conf /usr/local/etc
 sudo install -m 644 BSD/zabbix_agentd.conf.d/userparameter_smartctl.conf /usr/local/etc/zabbix42/zabbix_agentd.conf.d/
 ```
 
@@ -68,7 +68,7 @@ python setup.py install
 move zabbix-smartmontools.conf C:\zabbix-agent\
 move Win\zabbix_agentd.conf.d\userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
 ```
-Install `python3` for [all users](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
+Install `python3` for [all users](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `zabbix-smartctl.exe`).
 <br />
 Note: currently windows version does not detaches and data can only be gathered on second run.
 
@@ -121,10 +121,13 @@ A: Reassign the template with `Unlink and clear` on the host for individual reso
 
 Q: Is it possible to monitor specific drives or exclude some of them?<br>
 Q: SCSI drive returns empty results while `-A` option working correctly.<br>
-A: Specify `diskListManual` in `smartctl-lld.py`:
-```python
-diskListManual = ['/dev/sda -d sat+megaraid,4', '/dev/sda -d sat+megaraid,5']
-diskListManual = ['/dev/csmi0,0 -d scsi', '/dev/csmi0,1 -d scsi']
+A: Specify `[Disks]` in `zabbix-smartmontools.conf`:
+```ini
+[Disks]
+/dev/sda: -d sat+megaraid,4
+/dev/sda: -d sat+megaraid,5
+/dev/csmi0,0: -d scsi
+/dev/csmi0,1: -d scsi
 ```
 
 Q: Old triggers are misleading after disk replacement.<br>

@@ -4,11 +4,11 @@ import sys
 from setuptools import setup, find_packages
 
 if 'bsd' in sys.platform:
-    examplesdir = "/usr/local/share/examples/smartctl-lld"
+    examplesdir = "/usr/local/share/examples/zabbix-smartmontools"
     sudoersdir = "/usr/local/etc/sudoers.d"
     sudoersfile = "Unix/sudoers.d/zabbix"
 elif sys.platform.startswith("linux"):
-    examplesdir = "/usr/local/share/doc/smartctl-lld/examples"
+    examplesdir = "/usr/local/share/doc/zabbix-smartmontools/examples"
     sudoersdir = "/etc/sudoers.d"
     sudoersfile = "Unix/sudoers.d/zabbix"
 else:
@@ -16,7 +16,7 @@ else:
 
 setup(
     author="",
-    name="smartctl-lld",
+    name="zabbix-smartmontools",
     data_files=[
         (examplesdir, ['zabbix-smartmontools.conf']),
         (os.path.join(examplesdir, "sudoers.d"), [sudoersfile])
@@ -24,7 +24,7 @@ setup(
     description="Disk SMART monitoring for Linux, FreeBSD and Windows. LLD, trapper. ",
     entry_points = {
         'console_scripts':
-            ['zabbix-smartctl = smartctl_lld:main']
+            ['zabbix-smartctl = zabbix_smartmontools:main']
     },
     packages=find_packages(),
     project_urls={

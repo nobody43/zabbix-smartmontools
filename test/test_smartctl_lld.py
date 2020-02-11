@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from parameterized import parameterized
 
-import smartctl_lld
+import zabbix_smartmontools
 
 def mock_smartctl(diskData):
     def f(args, **kwargs):
@@ -27,8 +27,8 @@ class TestGetAllDisks(unittest.TestCase):
         da0_output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
-        config = smartctl_lld.parseConfig("test/example/empty")
-        r = smartctl_lld.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
+        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
         self.assertEqual(r,
             ([{'{#DDRIVESTATUS}': 'da0'}, {'{#DISKID}': 'da0'}, {'{#DISKIDSAS}': 'da0'}],
              ['myhost smartctl.info[da0,serial] "Z1Z3SGMD00009437061J"',
@@ -61,9 +61,9 @@ class TestGetAllDisks(unittest.TestCase):
             '-a /dev/da0 -d auto': da0_output,
             '-a /dev/da1 -d auto': da1_output,
         })
-        config = smartctl_lld.parseConfig("test/example/empty")
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
         config['skipDuplicates'] = True
-        r = smartctl_lld.getAllDisks(config, "myhost", "getverb", [
+        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", [
             "/dev/da0 -d scsi",
             "/dev/da1 -d scsi",
         ])
@@ -99,9 +99,9 @@ class TestGetAllDisks(unittest.TestCase):
         da0_output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
-        config = smartctl_lld.parseConfig("test/example/empty")
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
         config['mode'] = 'serial'
-        r = smartctl_lld.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
+        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
         self.assertEqual(r,
             ([{'{#DDRIVESTATUS}': 'Z1Z3SGMD00009437061J'},
               {'{#DISKID}': 'Z1Z3SGMD00009437061J'},
@@ -133,8 +133,8 @@ class TestGetSmart(unittest.TestCase):
         output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': output})
-        config = smartctl_lld.parseConfig("test/example/empty")
-        r = smartctl_lld.getSmart(config, "myhost", "getverb", "/dev/da0 -d scsi ")
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
+        r = zabbix_smartmontools.getSmart(config, "myhost", "getverb", "/dev/da0 -d scsi ")
         self.assertEqual(r, expected)
 
     @parameterized.expand([
@@ -171,21 +171,21 @@ class TestGetSmart(unittest.TestCase):
 class TestParseConfig(unittest.TestCase):
     def test_defaults(self):
         ''' Should have sane defaults if config file is not present '''
-        config = smartctl_lld.parseConfig("/does_not_exist!!!")
+        config = zabbix_smartmontools.parseConfig("/does_not_exist!!!")
         self.assertEqual(config['mode'], 'device')
         self.assertTrue(config['skipDuplicates'])
         self.assertEqual(config['ctlPath'], 'smartctl')
         self.assertFalse('Disks' in config)
 
     def test_disk_list(self):
-        config = smartctl_lld.parseConfig('test/example/with_disk_list.conf')
+        config = zabbix_smartmontools.parseConfig('test/example/with_disk_list.conf')
         self.assertEqual(config['Disks'], [
             "/dev/sda -d sat+megaraid,4",
             "/dev/da0 -d scsi"
         ])
 
     def test_no_disk_list(self):
-        config = smartctl_lld.parseConfig('test/example/no_disk_list.conf')
+        config = zabbix_smartmontools.parseConfig('test/example/no_disk_list.conf')
         self.assertEqual(config['mode'], 'device')
         self.assertTrue(config['skipDuplicates'])
         self.assertEqual(config['ctlPath'], 'smartctl')
@@ -198,8 +198,8 @@ class TestParseConfig(unittest.TestCase):
 class TestScan(unittest.TestCase):
     def runtest(self, output, expected_disks, patchCheckOutput):
         patchCheckOutput.side_effect = mock_smartctl({'--scan': output})
-        config = smartctl_lld.parseConfig("test/example/empty")
-        (error, disks) = smartctl_lld.scanDisks(config, "getverb")
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
+        (error, disks) = zabbix_smartmontools.scanDisks(config, "getverb")
         self.assertEqual(error, "")
         self.assertEqual(disks, expected_disks)
 
