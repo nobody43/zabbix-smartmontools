@@ -9,7 +9,7 @@ from shlex import split
 import subprocess
 import sys
 
-from zabbix_smartmontools.sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
+from zabbix_smartmontools.sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr)
 
 
 def scanDisks(config, command):
@@ -408,8 +408,6 @@ def parseConfig(path=None):
     return d
 
 def main():
-    fail_ifNot_Py3()
-
     cmd = sys.argv[1]
     host = '"%s"' % (sys.argv[2])
     config = parseConfig()

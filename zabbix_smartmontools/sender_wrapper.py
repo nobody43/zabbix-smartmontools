@@ -19,10 +19,10 @@ def isWindows():
 def send(fetchMode, agentConf, senderPath, senderDataNStr):
 
     if fetchMode == 'get':
-        DEVNULL = chooseDevnull()
+        devnull = open(os.devnull, 'w')
         senderProc = subprocess.Popen([senderPath, '-c', agentConf, '-i', '-'],
                                       stdin=subprocess.PIPE,
-                                      stdout=DEVNULL, universal_newlines=True,
+                                      stdout=devnull, universal_newlines=True,
                                       close_fds=(not isWindows()))
 
     elif fetchMode == 'getverb':
@@ -88,26 +88,11 @@ def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
         send(fetchMode, agentConf, senderPath, senderDataNStr)
 
 
-def fail_ifNot_Py3():
-    '''Terminate if not using python3.'''
-    if sys.version_info.major != 3:
-        sys.stdout.write(sys.argv[0] + ': Python3 is required.')
-        sys.exit(1)
-
-
-def oldPythonMsg():
-    if     (sys.version_info.major == 3 and
-            sys.version_info.minor <= 2):
-            
-        print("python32 or less is detected. It's advisable to use python33 or above for timeout guards support.")
-
 
 def displayVersions(config, senderPath_):
     '''Display python and sender versions.'''
     print('  Python version:\n', sys.version)
     
-    oldPythonMsg()
-
     try:
         print('\n  Sender version:\n', subprocess.check_output([senderPath_, '-V']).decode())
     except:
@@ -142,19 +127,8 @@ def readConfig(config):
         print()
 
 
-def chooseDevnull():
-    try:
-        from subprocess import DEVNULL   # for python versions greater than 3.3, inclusive
-    except:
-        import os
-        DEVNULL = open(os.devnull, 'w')  # for 3.0-3.2, inclusive
-        
-    return DEVNULL
-
-
 def processData(senderData_, jsonData_, agentConf_, senderPath_, host_):
     '''Compose data and try to send it.'''
-    DEVNULL = chooseDevnull()
 
     fetchMode_ = sys.argv[1]
     senderDataNStr = '\n'.join(senderData_)   # items for zabbix sender separated by newlines
