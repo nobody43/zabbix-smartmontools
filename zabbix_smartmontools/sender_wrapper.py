@@ -19,8 +19,11 @@ def isWindows():
 def send(fetchMode, agentConf, senderPath, senderDataNStr):
 
     if fetchMode == 'get':
+        DEVNULL = chooseDevnull()
         senderProc = subprocess.Popen([senderPath, '-c', agentConf, '-i', '-'],
-                                      stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
+                                      stdin=subprocess.PIPE,
+                                      stdout=DEVNULL, universal_newlines=True,
+                                      close_fds=(not isWindows()))
 
     elif fetchMode == 'getverb':
         senderProc = subprocess.Popen([senderPath, '-vv', '-c', agentConf, '-i', '-'],

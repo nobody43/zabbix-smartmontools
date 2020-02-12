@@ -9,16 +9,20 @@ if 'bsd' in sys.platform:
 elif sys.platform.startswith("linux"):
     examplesdir = "/usr/local/share/doc/zabbix-smartmontools/examples"
     sudoersfile = "Unix/sudoers.d/zabbix"
+elif sys.platform == "win32":
+    examplesdir = r"C:\zabbix-agent\zabbix-smartmontools"
+    sudoersfile = False
 else:
     raise NotImplementedError
+
+data_files = [(examplesdir, ['zabbix-smartmontools.conf'])]
+if sudoersfile:
+    data_files.append((os.path.join(examplesdir, "sudoers.d"), [sudoersfile]))
 
 setup(
     author="",
     name="zabbix-smartmontools",
-    data_files=[
-        (examplesdir, ['zabbix-smartmontools.conf']),
-        (os.path.join(examplesdir, "sudoers.d"), [sudoersfile])
-    ],
+    data_files=data_files,
     description="Disk SMART monitoring for Linux, FreeBSD and Windows. LLD, trapper. ",
     entry_points = {
         'console_scripts':
