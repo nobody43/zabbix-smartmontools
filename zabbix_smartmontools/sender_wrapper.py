@@ -42,7 +42,8 @@ def send(fetchMode, agentConf, senderPath, senderDataNStr):
 # the parent process can swiftly reply with discovery info while the child
 # gathers and sends detailed stats.
 def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
-    if fetchMode == "get":
+    # Don't fork on Windows, because Windows doesn't have fork
+    if fetchMode == "get" and not sys.platform == 'win32':
         # Must flush prior to fork, otherwise parent and child will both
         # flush the same data and zabbix_agentd will see it twice.
         sys.stdout.flush()
