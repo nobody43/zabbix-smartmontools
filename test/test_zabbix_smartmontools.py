@@ -28,7 +28,8 @@ class TestGetAllDisks(unittest.TestCase):
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
         config = zabbix_smartmontools.parseConfig("test/example/empty")
-        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
+        diskList = [("da0",  "scsi")]
+        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", diskList)
         self.assertEqual(r,
             ([{'{#DDRIVESTATUS}': 'da0'}, {'{#DISKID}': 'da0'}, {'{#DISKIDSAS}': 'da0'}],
              ['myhost smartctl.info[da0,serial] "Z1Z3SGMD00009437061J"',
@@ -63,10 +64,8 @@ class TestGetAllDisks(unittest.TestCase):
         })
         config = zabbix_smartmontools.parseConfig("test/example/empty")
         config['skipDuplicates'] = True
-        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", [
-            "/dev/da0 -d scsi",
-            "/dev/da1 -d scsi",
-        ])
+        diskList = [("da0",  "scsi"), ("da1", "scsi")]
+        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", diskList)
         self.assertEqual(r,
             ([{'{#DDRIVESTATUS}': 'da0'},
               {'{#DISKID}': 'da0'},
@@ -101,7 +100,8 @@ class TestGetAllDisks(unittest.TestCase):
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': da0_output})
         config = zabbix_smartmontools.parseConfig("test/example/empty")
         config['mode'] = 'serial'
-        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", ["/dev/da0 -d scsi"])
+        diskList = [("da0",  "scsi")]
+        r = zabbix_smartmontools.getAllDisks(config, "myhost", "getverb", diskList)
         self.assertEqual(r,
             ([{'{#DDRIVESTATUS}': 'Z1Z3SGMD00009437061J'},
               {'{#DISKID}': 'Z1Z3SGMD00009437061J'},
@@ -134,7 +134,7 @@ class TestGetSmart(unittest.TestCase):
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': output})
         config = zabbix_smartmontools.parseConfig("test/example/empty")
-        r = zabbix_smartmontools.getSmart(config, "myhost", "getverb", "/dev/da0 -d scsi ")
+        r = zabbix_smartmontools.getSmart(config, "myhost", "getverb", "da0", "scsi")
         self.assertEqual(r, expected)
 
     @parameterized.expand([
@@ -161,7 +161,7 @@ class TestGetSmart(unittest.TestCase):
               'myhost smartctl.value[da0,nonMediumErrors] "181"'],
              [{'{#DISKID}': 'da0'}, {'{#DISKIDSAS}': 'da0'}],
              ('Z1Z3SGMD00009437061J', [None, '4000787030016', '7200']),
-             ('da0', 'da0'))
+             'da0')
         )
     ])
     @patch('subprocess.check_output')
@@ -180,8 +180,8 @@ class TestParseConfig(unittest.TestCase):
     def test_disk_list(self):
         config = zabbix_smartmontools.parseConfig('test/example/with_disk_list.conf')
         self.assertEqual(config['Disks'], [
-            "/dev/sda -d sat+megaraid,4",
-            "/dev/da0 -d scsi"
+            ("sda", "sat+megaraid,4"),
+            ("da0", "scsi")
         ])
 
     def test_no_disk_list(self):
@@ -207,10 +207,11 @@ class TestScan(unittest.TestCase):
         # No disks at all
         ("", []),
         # One scsi disk
-        ("/dev/da0 -d scsi # /dev/da0, SCSI device\n", ["/dev/da0 -d scsi "]),
+        ("/dev/da0 -d scsi # /dev/da0, SCSI device\n",
+            [("da0", "scsi")]),
         # Two scsi disks
         ("/dev/da0 -d scsi # /dev/da0, SCSI device\n/dev/da1 -d scsi # /dev/da1, SCSI device\n",
-            ["/dev/da0 -d scsi ", "/dev/da1 -d scsi "]),
+            [("da0", "scsi"), ("da1", "scsi")]),
         # TODO: ATA disks and NVME disks
     ])
     @patch('subprocess.check_output')
