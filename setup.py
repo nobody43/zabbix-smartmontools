@@ -5,11 +5,9 @@ from setuptools import setup, find_packages
 
 if 'bsd' in sys.platform:
     examplesdir = "/usr/local/share/examples/zabbix-smartmontools"
-    sudoersdir = "/usr/local/etc/sudoers.d"
     sudoersfile = "Unix/sudoers.d/zabbix"
 elif sys.platform.startswith("linux"):
     examplesdir = "/usr/local/share/doc/zabbix-smartmontools/examples"
-    sudoersdir = "/etc/sudoers.d"
     sudoersfile = "Unix/sudoers.d/zabbix"
 else:
     raise NotImplementedError
