@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import os
 import sys
@@ -18,8 +19,11 @@ def isWindows():
 def send(fetchMode, agentConf, senderPath, senderDataNStr):
 
     if fetchMode == 'get':
+        DEVNULL = chooseDevnull()
         senderProc = subprocess.Popen([senderPath, '-c', agentConf, '-i', '-'],
-                                      stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
+                                      stdin=subprocess.PIPE,
+                                      stdout=DEVNULL, universal_newlines=True,
+                                      close_fds=(not isWindows()))
 
     elif fetchMode == 'getverb':
         senderProc = subprocess.Popen([senderPath, '-vv', '-c', agentConf, '-i', '-'],
@@ -41,7 +45,8 @@ def send(fetchMode, agentConf, senderPath, senderDataNStr):
 # the parent process can swiftly reply with discovery info while the child
 # gathers and sends detailed stats.
 def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
-    if fetchMode == "get":
+    # Don't fork on Windows, because Windows doesn't have fork
+    if fetchMode == "get" and not sys.platform == 'win32':
         # Must flush prior to fork, otherwise parent and child will both
         # flush the same data and zabbix_agentd will see it twice.
         sys.stdout.flush()
@@ -147,8 +152,7 @@ def chooseDevnull():
     return DEVNULL
 
 
-def processData(senderData_, jsonData_, agentConf_, senderPyPath_, senderPath_,
-                host_, issuesLink_, sendStatusKey_='UNKNOWN'):
+def processData(senderData_, jsonData_, agentConf_, senderPath_, host_):
     '''Compose data and try to send it.'''
     DEVNULL = chooseDevnull()
 
