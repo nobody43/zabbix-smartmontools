@@ -128,12 +128,13 @@ class TestGetAllDisks(unittest.TestCase):
 
 
 class TestGetSmart(unittest.TestCase):
-    def runtest(self, filename, expected, patchCheckOutput):
+    def runtest(self, filename, expected, patchCheckOutput, mode = 'device'):
         f = open("test/example/%s" % filename)
         output = f.read()
         f.close()
         patchCheckOutput.side_effect = mock_smartctl({'-a /dev/da0 -d auto': output})
         config = zabbix_smartmontools.parseConfig("test/example/empty")
+        config['mode'] = mode
         r = zabbix_smartmontools.getSmart(config, "myhost", "getverb", "da0", "scsi")
         self.assertEqual(r, expected)
 
@@ -167,6 +168,38 @@ class TestGetSmart(unittest.TestCase):
     @patch('subprocess.check_output')
     def test_freebsd(self, filename, expected, patchCheckOutput):
         self.runtest(filename, expected, patchCheckOutput)
+
+    # Test output when mode: serial in the config file
+    @parameterized.expand([
+        ("ST4000NM0023.txt",
+            (None,
+             ['myhost smartctl.info[Z1Z3SGMD00009437061J,serial] "Z1Z3SGMD00009437061J"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,DriveStatus] "PROCESSED"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,device] "da0"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,model] "ST4000NM0023"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,capacity] "4000787030016"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,selftest] "OK"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,rpm] "7200"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,formFactor] "3.5 inches"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,vendor] "SEAGATE"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,SmartStatus] "PRESENT_SAS"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,revision] "0004"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,compliance] "SPC-4"',
+              'myhost smartctl.info[Z1Z3SGMD00009437061J,manufacturedYear] "2014"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,loadUnload] "2108"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,loadUnloadMax] "300000"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,startStop] "119"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,startStopMax] "10000"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,defects] "15"',
+              'myhost smartctl.value[Z1Z3SGMD00009437061J,nonMediumErrors] "181"'],
+             [{'{#DISKID}': 'Z1Z3SGMD00009437061J'}, {'{#DISKIDSAS}': 'Z1Z3SGMD00009437061J'}],
+             ('Z1Z3SGMD00009437061J', [None, '4000787030016', '7200']),
+             'Z1Z3SGMD00009437061J')
+        )
+    ])
+    @patch('subprocess.check_output')
+    def test_serial(self, filename, expected, patchCheckOutput):
+        self.runtest(filename, expected, patchCheckOutput, 'serial')
 
 class TestParseConfig(unittest.TestCase):
     def test_defaults(self):
