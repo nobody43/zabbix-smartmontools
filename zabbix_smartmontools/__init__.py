@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import configparser
 import glob
 import ntpath
