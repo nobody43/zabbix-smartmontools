@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import configparser
+from fcntl import ioctl
 import glob
 from json import dumps
 import ntpath
@@ -76,9 +77,8 @@ def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
         send(fetchMode, agentConf, senderPath, senderDataNStr)
 
 
-def getAllDisks(config, host, command, diskList):
+def getSmartData(config, host, command, diskList):
     driveHeaders = []
-    jsonData = []
     senderData = []
     for (device, protocol) in diskList:   # cycle through disks
         getSmart_Out = getSmart(config, host, command, device, protocol)
@@ -99,7 +99,6 @@ def getAllDisks(config, host, command, diskList):
                 for s,h in driveHeaders:
                     if s == serialCurrent and h == headerCurrent:
                         senderData.append('%s smartctl.info[%s,DriveStatus] "DUPLICATE"' % (host, device))
-                        jsonData.append({'{#DDRIVESTATUS}':device})   # populate duplicate only with original drive ID
                         duplicate = True
                         break   # break from header check
 
@@ -108,12 +107,55 @@ def getAllDisks(config, host, command, diskList):
 
                 driveHeaders.append((serialCurrent, headerCurrent))   # add header info for current disk, only if it's not duplicate
 
-        # Add collected data
-        jsonData.append({'{#DDRIVESTATUS}':finalD})   # always populate 'DriveStatus' LLD
         senderData.extend(getSmart_Out[1])
-        jsonData.extend(getSmart_Out[2])
-    return jsonData, senderData
+    return senderData
 
+
+def getDiscoveryData(config, host, diskList):
+    """ Return the data that Zabbix expects for device discovery """
+    reported_serials = set({})
+    jsonData = []
+    for (device, protocol) in diskList:
+        if config['mode'] == 'serial' or config['skipDuplicates']:
+            serial = getSerial(device)
+        else:
+            serial = None
+        if config['mode'] == 'serial' and serial:
+            identifier = serial
+        else:
+            identifier = device
+        jsonData.append({'{#DDRIVESTATUS}': identifier})
+        if not serial in reported_serials or not config['skipDuplicates']:
+            jsonData.append({"{#DISKID}": identifier})
+            jsonData.append({"{#DISKIDSAS}": identifier})
+        if serial:
+            reported_serials.add(serial)
+    return jsonData
+
+
+# Get the serial number of a hard drive, using the fastest method available on
+# each platform.
+def getSerial(device):
+    """ Get the serial number of a hard drive """
+    serial = None
+    if 'freebsd' in sys.platform:
+        DISK_IDENT_SIZE = 256       # from sys/disk.h
+        DIOCGIDENT = 0x41006489     # from sys/disk.h
+        ident = DISK_IDENT_SIZE * r" "
+        f = open("/dev/%s" % device, 'r')
+        serial = ioctl(f, DIOCGIDENT, ident).decode().strip("\x00")
+    elif sys.platform.startswith('linux'):
+        # TODO: is there a way to get this without using a subprocess?
+        cp = subprocess.run(["/sbin/udevadm", "info", "--query=all",
+            "--name=/dev/%s" % device], capture_output=True)
+        for line in cp.stdout.decode().splitlines():
+            match = re.match("ID_SERIAL_SHORT=(\S+)", line)
+            if match:
+                serial = match.groups()[1]
+                break
+    else:
+        raise NotImplementedError
+    return serial
 
 def getSmart(config, host, command, device, protocol):
     if not 'Disks' in config and protocol == 'scsi':
@@ -388,7 +430,8 @@ def main():
     else:
         diskList = config['Disks']
 
-    jsonData, senderData = getAllDisks(config, host, cmd, diskList)
+    jsonData = getDiscoveryData(config, host, diskList)
+    senderData = getSmartData(config, host, cmd, diskList)
 
     if configError:
         senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
