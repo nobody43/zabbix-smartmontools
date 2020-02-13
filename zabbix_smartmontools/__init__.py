@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import configparser
+import errno
 from fcntl import ioctl
 import glob
 from json import dumps
@@ -156,7 +157,15 @@ def getSerial(device):
         DIOCGIDENT = 0x41006489     # from sys/disk.h
         ident = DISK_IDENT_SIZE * r" "
         f = open("/dev/%s" % device, 'r')
-        serial = ioctl(f, DIOCGIDENT, ident).decode().strip("\x00")
+        try:
+            serial = ioctl(f, DIOCGIDENT, ident).decode().strip("\x00")
+        except OSError as e:
+            if e.errno == errno.EBADF:
+                # EBADF indicates something that's not a disk, such as a SES
+                # enclosure
+                True
+            else:
+                raise e
     elif sys.platform.startswith('linux'):
         # TODO: is there a way to get this without using a subprocess?
         cp = subprocess.run(["/sbin/udevadm", "info", "--query=all",

@@ -352,6 +352,15 @@ class TestGetSerial(unittest.TestCase):
         self.assertEqual(0, cp.returncode)
         self.assertEqual(serial, cp.stdout.decode().strip())
 
+    def test_freebsd_ses(self):
+        """ Program shouldn't crash when scanning a ses device """
+        device = self.find_device("(ses)[0-9]+$")
+        try:
+            serial = zabbix_smartmontools.getSerial(device)
+        except PermissionError:
+            self.skipTest("Insufficient permissions")
+        self.assertEqual(serial, None)
+
     @unittest.skipIf(not sys.platform.startswith("linux"),
             "This test only applies to Linux")
     def test_linux(self):
