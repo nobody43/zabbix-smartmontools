@@ -6,6 +6,7 @@ import glob
 from json import dumps
 import ntpath
 import os
+import pprint
 import re
 from shlex import split
 import subprocess
@@ -33,9 +34,11 @@ def displayVersions(config, senderPath_):
 # fork_and_send creates a child process to send push statistics.  That way
 # the parent process can swiftly reply with discovery info while the child
 # gathers and sends detailed stats.
-def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
+def fork_and_send(cmd, host, config, diskList, senderData):
+    agentConf = config['agentConf']
+    senderPath = config['senderPath']
     # Don't fork on Windows, because Windows doesn't have fork
-    if fetchMode == "get" and not sys.platform == 'win32':
+    if cmd == "get" and not sys.platform == 'win32':
         # Must flush prior to fork, otherwise parent and child will both
         # flush the same data and zabbix_agentd will see it twice.
         sys.stdout.flush()
@@ -54,6 +57,10 @@ def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
             sys.stdin.close()
             os.close(stdin)
 
+            # Interrogate drives here so we don't block discovery
+            senderData += getSmartData(config, host, cmd, diskList)
+            senderDataNStr = '\n'.join(senderData)
+
             # Wait for the parent process to complete so the zabbix server
             # will have the latest discovery info.
             while True:
@@ -69,13 +76,19 @@ def fork_and_send(fetchMode, agentConf, senderPath, senderDataNStr):
                 # parent is still running; loop
                 sleep(0.125)
 
-            send(fetchMode, agentConf, senderPath, senderDataNStr)
+            send(cmd, agentConf, senderPath, senderData)
         else:
             # In parent; simply return
             True
+    elif cmd == "get" and sys.platform == "win32":
+        senderData += getSmartData(config, host, cmd, diskList)
+        send(cmd, agentConf, senderPath, senderData)
+    elif cmd == "getverb":
+        senderData += getSmartData(config, host, cmd, diskList)
+        pprint.pprint(senderData)
+        send(cmd, agentConf, senderPath, senderData)
     else:
-        send(fetchMode, agentConf, senderPath, senderDataNStr)
-
+        raise NotImplementedError
 
 def getSmartData(config, host, command, diskList):
     driveHeaders = []
@@ -420,6 +433,7 @@ def main():
     cmd = sys.argv[1]
     host = '"%s"' % (sys.argv[2])
     config = parseConfig()
+    senderData = []
 
     configError = None
     if not 'Disks' in config:
@@ -431,7 +445,6 @@ def main():
         diskList = config['Disks']
 
     jsonData = getDiscoveryData(config, host, diskList)
-    senderData = getSmartData(config, host, cmd, diskList)
 
     if configError:
         senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
@@ -440,7 +453,24 @@ def main():
     else:
         senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
 
-    processData(senderData, jsonData, config['agentConf'], config['senderPath'], host)
+    # pass senderDataNStr to sender_wrapper.py:
+    if cmd == 'get':
+        print(dumps({"data": jsonData}, indent=4))   # print data gathered for LLD
+
+        fork_and_send(cmd, host, config, diskList, senderData)
+
+    elif cmd == 'getverb':
+        displayVersions(config['agentConf'], config['senderPath'])
+        readConfig(config['agentConf'])
+        print('\n  Note: the sender will fail if server did not gather LLD previously.')
+        print('\n  Data sent to zabbix sender:')
+        print('\n')
+
+        fork_and_send(cmd, host, config, diskList, senderData)
+
+    else:
+        print(sys.argv[0] + ": Not supported. Use 'get' or 'getverb'.")
+
 
 
 def whyNoSmart(p, dR):
@@ -508,32 +538,6 @@ def parseConfig(path=None):
         d['Disks'] = [(k, v) for (k, v) in config['Disks'].items()]
 
     return d
-
-
-def processData(senderData_, jsonData_, agentConf_, senderPath_, host_):
-    '''Compose data and try to send it.'''
-
-    fetchMode_ = sys.argv[1]
-    senderDataNStr = '\n'.join(senderData_)   # items for zabbix sender separated by newlines
-
-    # pass senderDataNStr to sender_wrapper.py:
-    if fetchMode_ == 'get':
-        print(dumps({"data": jsonData_}, indent=4))   # print data gathered for LLD
-
-        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
-
-    elif fetchMode_ == 'getverb':
-        displayVersions(agentConf_, senderPath_)
-        readConfig(agentConf_)
-        print('\n  Note: the sender will fail if server did not gather LLD previously.')
-        print('\n  Data sent to zabbix sender:')
-        print('\n')
-        print(senderDataNStr)
-
-        fork_and_send(fetchMode_, agentConf_, senderPath_, senderDataNStr)
-
-    else:
-        print(sys.argv[0] + ": Not supported. Use 'get' or 'getverb'.")
 
 
 def readConfig(config):
@@ -613,9 +617,9 @@ def scanDisks(config, command):
     return error, disks
 
 
-def send(fetchMode, agentConf, senderPath, senderDataNStr):
-
-    if fetchMode == 'get':
+def send(cmd, agentConf, senderPath, senderData):
+    senderDataNStr = '\n'.join(senderData)
+    if cmd == 'get':
         devnull = open(os.devnull, 'w')
         senderProc = subprocess.Popen([senderPath, '-c', agentConf, '-i', '-'],
                                       stdin=subprocess.PIPE,
@@ -623,7 +627,7 @@ def send(fetchMode, agentConf, senderPath, senderDataNStr):
                                       universal_newlines=True,
                                       close_fds=(not isWindows()))
 
-    elif fetchMode == 'getverb':
+    elif cmd == 'getverb':
         senderProc = subprocess.Popen([senderPath, '-vv', '-c', agentConf, '-i', '-'],
                                       stdin=subprocess.PIPE, universal_newlines=True, close_fds=(not isWindows()))
 
