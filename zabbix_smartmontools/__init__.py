@@ -173,7 +173,7 @@ def getSerial(device):
             "--name=/dev/%s" % device], stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
         for line in cp.stdout.decode().splitlines():
-            match = re.match("ID_SERIAL_SHORT=(\S+)", line)
+            match = re.match("(?:[A-Z]: )?ID_SERIAL_SHORT=(\S+)", line)
             if match:
                 serial = match.groups()[1]
                 break
