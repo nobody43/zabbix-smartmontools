@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import configparser
-import errno
-from fcntl import ioctl
 import glob
 from json import dumps
 import ntpath
@@ -153,6 +151,9 @@ def getSerial(device):
     """ Get the serial number of a hard drive """
     serial = None
     if 'freebsd' in sys.platform:
+        import errno
+        from fcntl import ioctl
+
         DISK_IDENT_SIZE = 256       # from sys/disk.h
         DIOCGIDENT = 0x41006489     # from sys/disk.h
         ident = DISK_IDENT_SIZE * r" "
