@@ -129,7 +129,7 @@ def getDiscoveryData(config, host, diskList):
     jsonData = []
     for (device, protocol) in diskList:
         if config['mode'] == 'serial' or config['skipDuplicates']:
-            serial = getSerial(device)
+            serial = getSerial(config, device)
         else:
             serial = None
         if config['mode'] == 'serial' and serial:
@@ -147,7 +147,7 @@ def getDiscoveryData(config, host, diskList):
 
 # Get the serial number of a hard drive, using the fastest method available on
 # each platform.
-def getSerial(device):
+def getSerial(config, device):
     """ Get the serial number of a hard drive """
     serial = None
     if 'freebsd' in sys.platform:
@@ -178,7 +178,14 @@ def getSerial(device):
                 serial = match.groups()[1]
                 break
     else:
-        raise NotImplementedError
+        # On other platforms, we have to invoke smartctl, which is slow :(
+        cp = subprocess.run([config['ctlPath'], "-i", "/dev/%s" % device],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for line in cp.stdout.decode().splitlines():
+            match = re.match("Serial Number:\s*(\S+)", line)
+            if match:
+                serial = match.group(1)
+                break
     return serial
 
 def getSmart(config, host, command, device, protocol):

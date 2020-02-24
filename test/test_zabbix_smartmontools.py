@@ -15,9 +15,9 @@ import zabbix_smartmontools
 # open is used in so many different places that it's basically unmockable.
 # Instead, we'll mock getSerial.
 def mock_getserial(mocks):
-    def f(args, **kwargs):
+    def f(config, devname, **kwargs):
         try:
-            return mocks[args]
+            return mocks[devname]
         except KeyError:
             raise "Unexpected arguments to getSerial"
     return f
@@ -342,9 +342,10 @@ class TestGetSerial(unittest.TestCase):
     @unittest.skipIf(not "freebsd" in sys.platform,
             "This test only applies to FreeBSD")
     def test_freebsd(self):
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
         device = self.find_device("(da|ada|vtbd|nvme|nvd)[0-9]+$")
         try:
-            serial = zabbix_smartmontools.getSerial(device)
+            serial = zabbix_smartmontools.getSerial(config, device)
             cp = subprocess.run(["/usr/sbin/diskinfo", "-s", device],
                     stdout=subprocess.PIPE)
         except PermissionError:
@@ -354,9 +355,10 @@ class TestGetSerial(unittest.TestCase):
 
     def test_freebsd_ses(self):
         """ Program shouldn't crash when scanning a ses device """
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
         device = self.find_device("(ses)[0-9]+$")
         try:
-            serial = zabbix_smartmontools.getSerial(device)
+            serial = zabbix_smartmontools.getSerial(config, device)
         except PermissionError:
             self.skipTest("Insufficient permissions")
         self.assertEqual(serial, None)
@@ -364,9 +366,10 @@ class TestGetSerial(unittest.TestCase):
     @unittest.skipIf(not sys.platform.startswith("linux"),
             "This test only applies to Linux")
     def test_linux(self):
-        device = self.find_device("(sda)[0-9]+$")
+        config = zabbix_smartmontools.parseConfig("test/example/empty")
+        device = self.find_device("(nvme|sda)[0-9]+$")
         try:
-            serial = zabbix_smartmontools.getSerial(device)
+            serial = zabbix_smartmontools.getSerial(config, device)
             cp = subprocess.run(["/sbin/udevadm", "info", "--query=all",
                 "--name=/dev/%s" % device], stdout=subprocess.PIPE)
         except PermissionError:
