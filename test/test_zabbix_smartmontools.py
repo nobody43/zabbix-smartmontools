@@ -346,7 +346,7 @@ class TestGetSerial(unittest.TestCase):
         try:
             serial = zabbix_smartmontools.getSerial(device)
             cp = subprocess.run(["/usr/sbin/diskinfo", "-s", device],
-                    capture_output=True)
+                    stdout=subprocess.PIPE)
         except PermissionError:
             self.skipTest("Insufficient permissions")
         self.assertEqual(0, cp.returncode)
@@ -368,7 +368,7 @@ class TestGetSerial(unittest.TestCase):
         try:
             serial = zabbix_smartmontools.getSerial(device)
             cp = subprocess.run(["/sbin/udevadm", "info", "--query=all",
-                "--name=/dev/%s" % device], capture_output=True)
+                "--name=/dev/%s" % device], stdout=subprocess.PIPE)
         except PermissionError:
             self.skipTest("Insufficient permissions")
         self.assertEqual(0, cp.returncode)

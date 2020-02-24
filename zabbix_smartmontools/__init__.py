@@ -170,7 +170,8 @@ def getSerial(device):
     elif sys.platform.startswith('linux'):
         # TODO: is there a way to get this without using a subprocess?
         cp = subprocess.run(["/sbin/udevadm", "info", "--query=all",
-            "--name=/dev/%s" % device], capture_output=True)
+            "--name=/dev/%s" % device], stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
         for line in cp.stdout.decode().splitlines():
             match = re.match("ID_SERIAL_SHORT=(\S+)", line)
             if match:
@@ -622,7 +623,7 @@ def scanDisks(config, command):
     for l in p.splitlines():
         match = re.match(r'/dev/(\S+) [-]d (\S+)', l)
         if match:
-            disks.append((match[1], match[2]))
+            disks.append((match.group(1), match.group(2)))
 
     return error, disks
 
