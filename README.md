@@ -36,12 +36,12 @@ Take a look at scripts first lines and provide paths if needed. If you have a RA
 [Repository installation](https://www.zabbix.com/documentation/3.0/manual/installation/install_from_packages/repository_installation)
 #### Debian
 ```bash
-apt-get install zabbix-agent zabbix-sender smartmontools sudo
+apt-get install zabbix-agent zabbix-sender smartmontools sudo python3-setuptools
 apt-get install zabbix-get   # testing
 ```
 #### Centos
 ```bash
-yum install zabbix-agent zabbix-sender smartmontools sudo
+yum install zabbix-agent zabbix-sender smartmontools sudo python3-setuptools
 yum install zabbix-get   # testing
 ```
 
