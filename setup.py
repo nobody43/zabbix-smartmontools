@@ -32,6 +32,7 @@ setup(
     project_urls={
         "Source Code": "https://github.com/nobodysu/zabbix-smartmontools"
     },
+    python_requires='>=3.3.0',
     tests_require=['parameterized'],
     version="1.5.5",
 )
