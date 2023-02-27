@@ -12,7 +12,7 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 - Error-proof configuration: various safeguard triggers
 - Automatic RAID passthrough (when smartctl detects the drives)
 
-Note: disk temperature is monitored using [different approach](https://github.com/nobodysu/zabbix-mini-IPMI).
+> **Note**: disk temperature is monitored using [different approach](https://github.com/nobodysu/zabbix-mini-IPMI).
 
 ## Triggers
 ![Triggers-Discovery2](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers2.png)
@@ -44,7 +44,7 @@ yum install zabbix-get   # testing
 ```
 
 ### Placing the files
-Note: `sender_wrapper.py` is shared among multiple projects and have the same contents - it can be overwritten.
+> **Note**: `sender_wrapper.py` is shared among multiple projects and have the same contents - it can be overwritten.
 #### Linux
 ```bash
 mv smartctl-lld.py sender_wrapper.py /etc/zabbix/scripts/
@@ -67,7 +67,7 @@ move userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
 ```
 Install `python3` for [all users](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
 <br />
-Note: currently windows version does not detaches and data can only be gathered on second run.
+> **Note**: currently windows version does not detaches and data can only be gathered on second run.
 
 ### Finalizing
 Then you need to include your zabbix conf folder in `zabbix_agentd.conf`, like this:
@@ -100,21 +100,22 @@ zabbix_get -s 192.0.2.1 -k smartctl.discovery[getverb,"Example host"]
 Verbose mode. Does not detaches or prints LLD. Lists all items sent to zabbix-sender, also it is possible to see sender output in this mode.
 <br /><br />
 
-Note: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`. In this monitoring solution update interval must not be less than 80 seconds.
+> **Note**: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`. In this monitoring solution update interval must not be less than 80 seconds.
 
 These scripts were tested to work with following configurations:
+- Debian 11 / Server (5.0, 6.0) / Agent 4.0 / Python 3.9
+- Ubuntu 22.04 / Server (5.0, 6.0) / Agent 5.0 / Python 3.10
+- Windows Server 2012 / Server 6.0 / Agent 4.0 / Python (3.7, 3.11)
+- Windows 10 / Server 6.0 / Agent 4.0 / Python (3.10, 3.11)
+- Windows 7 / Server 6.0 / Agent 4.0 / Python (3.4, 3.7, 3.8)
 - Centos 7 / Zabbix 3.0 / Python 3.6
-- Debian 9 / Zabbix 3.0 / Python 3.5
-- Ubuntu 17.10 / Zabbix 3.0 / Python 3.6
 - FreeBSD 10.3 / Zabbix 3.0 / Python 3.6
 - Windows XP / Zabbix 3.0 / Python 3.4
-- Windows 7 / Zabbix 3.0 / Python (3.4, 3.7, 3.8)
-- Windows Server 2012 / Zabbix 3.0 / Python 3.7
 
 ## Updating
 Overwrite scripts and UserParameters. If UserParameters were changed - agent restart is required. If template had changed from previous version - update it in zabbix web interface [marking](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
 
-Note: low values in php settings `/etc/httpd/conf.d/zabbix.conf` may result in request failure. Especially `php_value memory_limit`.
+> **Note**: low values in php settings `/etc/httpd/conf.d/zabbix.conf` may result in request failure. Especially `php_value memory_limit`.
 
 ## FAQ
 Q: Trigger fires when it clearly shouldn't.<br>

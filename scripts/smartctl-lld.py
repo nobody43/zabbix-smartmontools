@@ -8,25 +8,25 @@ mode = 'device'        # 'device' or 'serial' as primary identifier in zabbix it
 skipDuplicates = 'yes' # skip duplicate disk outputs. 'DriveStatus' json will not be skipped
                        # determined by disk serial, model, capacity and firmware (serial + at least one of others)
 
-ctlPath = r'smartctl'
-#ctlPath = r'C:\Program Files\smartmontools\bin\smartctl.exe'        # if smartctl isn't in PATH
-#ctlPath = r'/usr/local/sbin/smartctl'
+binPath      = r'smartctl'
+#binPath      = r'C:\Program Files\smartmontools\bin\smartctl.exe'         # if smartctl isn't in PATH
+#binPath      = r'/usr/local/sbin/smartctl'
 
 # path to second send script
-senderPyPath = r'/etc/zabbix/scripts/sender_wrapper.py'              # Linux
-#senderPyPath = r'C:\zabbix-agent\scripts\sender_wrapper.py'         # Win
-#senderPyPath = r'/usr/local/etc/zabbix/scripts/sender_wrapper.py'   # BSD
+senderPyPath = r'/etc/zabbix/scripts/sender_wrapper.py'                    # Linux
+#senderPyPath = r'C:\Program Files\Zabbix Agent\scripts\sender_wrapper.py' # Win
+#senderPyPath = r'/usr/local/etc/zabbix/scripts/sender_wrapper.py'         # BSD
 
 # path to zabbix agent configuration file
-agentConf = r'/etc/zabbix/zabbix_agentd.conf'                        # Linux
-#agentConf = r'C:\zabbix_agentd.conf'                                # Win
-#agentConf = r'/usr/local/etc/zabbix3/zabbix_agentd.conf'            # BSD
+agentConf    = r'/etc/zabbix/zabbix_agentd.conf'                           # Linux
+#agentConf    = r'C:\Program Files\Zabbix Agent\zabbix_agentd.conf'        # Win
+#agentConf    = r'/usr/local/etc/zabbix3/zabbix_agentd.conf'               # BSD
 
-senderPath = r'zabbix_sender'                                        # Linux, BSD
-#senderPath = r'C:\zabbix-agent\bin\win32\zabbix_sender.exe'         # Win
+senderPath   = r'zabbix_sender'                                            # Linux, BSD
+#senderPath   = r'C:\Program Files\Zabbix Agent\zabbix_sender.exe'         # Win
 
-timeout = '80'   # how long the script must wait between LLD and sending, increase if data received late (does not affect windows)
-                 # this setting MUST be lower than 'Update interval' in discovery rule
+delay = '50'   # how long the script must wait between LLD and sending, increase if data received late (does not affect windows)
+               # this setting MUST be lower than 'Update interval' in discovery rule
 
 # manually provide disk list or RAID configuration if needed
 diskListManual = []
@@ -40,14 +40,14 @@ import sys
 import subprocess
 import re
 import ntpath
-from shlex import split
+import shlex
 from sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeStr, fail_ifNot_Py3)
 
 
 def scanDisks():
     '''Determines available disks. Can be skipped.'''
     try:
-        p = subprocess.check_output([ctlPath, '--scan'], universal_newlines=True)   # scan the disks
+        p = subprocess.check_output(addSudoIfNix([binPath, '--scan']), universal_newlines=True)   # scan the disks
         error = ''
     except OSError as e:
         p = ''
@@ -57,7 +57,7 @@ def scanDisks():
         else:
             error = 'SCAN_OS_ERROR'
     except Exception as e:
-        try:   # extra safe
+        try:
             p = e.output
         except:
             p = ''
@@ -169,7 +169,7 @@ def getSmart(d):
     driveHeader = []   # tracking duplicates
 
     try:
-        p = subprocess.check_output([ctlPath, '-a'] + split(d), universal_newlines=True)   # take string from 'diskListRe', make arguments from it and append to existing command, then run it
+        p = subprocess.check_output(addSudoIfNix([binPath, '-a']) + shlex.split(d), universal_newlines=True)   # take string from 'diskListRe', make arguments from it and append to existing command, then run it
     except OSError as e:
         if e.args[0] == 2:
             fatalError = 'D_OS_NOCMD'
@@ -178,7 +178,7 @@ def getSmart(d):
 
         return fatalError, sender, json, (serial, driveHeader), (dR, dOrig)
 
-    except subprocess.CalledProcessError as e:   # handle process-specific errors
+    except subprocess.CalledProcessError as e:
         ''' See 'man smartctl' for more information
         Bit 0 = Code 1
         Bit 1 = Code 2
@@ -189,7 +189,7 @@ def getSmart(d):
         Bit 6 = Code 64
         Bit 7 = Code 128
         '''
-        p = e.output   # substitude output even on error, so it can be processed further
+        p = e.output
         driveStatus = 'ERR_CODE_%s' % (str(e.args[0]))
 
         m1 = "SMART support is: Unavailable - Packet Interface Devices [this device: CD/DVD] don't support ATA SMART"
@@ -338,16 +338,25 @@ def whyNoSmart(p, dR):
     sender = []
 
     smartUnavailableRe = re.search(r'^SMART support is:\s+Unavailable - device lacks SMART capability', p, re.M | re.I)
-    smartDisabledRe = re.search(r'^SMART support is:\s+Disabled', p, re.M | re.I)
+    smartDisabledRe    = re.search(r'^SMART support is:\s+Disabled', p, re.M | re.I)
 
     if smartUnavailableRe:
         sender.append('%s smartctl.info[%s,SmartStatus] "UNAVAILABLE"' % (host, dR))
     elif smartDisabledRe:
         sender.append('%s smartctl.info[%s,SmartStatus] "DISABLED"' % (host, dR))
     else:
-        sender.append('%s smartctl.info[%s,SmartStatus] "NO_SMART_VALUES"' % (host, dR))   # something else
+        sender.append('%s smartctl.info[%s,SmartStatus] "NO_SMART_VALUES"' % (host, dR))
 
     return sender
+
+
+def addSudoIfNix(cmd):
+
+    result = cmd
+    if not sys.platform == 'win32':
+        result = ['sudo'] + cmd
+
+    return result
 
 
 if __name__ == '__main__':
@@ -404,10 +413,10 @@ if __name__ == '__main__':
     if configError:
         senderData.append('%s smartctl.info[ConfigStatus] "%s"' % (host, configError))
     elif not diskList:
-        senderData.append('%s smartctl.info[ConfigStatus] "NODISKS"' % (host))   # if no disks were found
+        senderData.append('%s smartctl.info[ConfigStatus] "NODISKS"' % (host))
     else:
         senderData.append('%s smartctl.info[ConfigStatus] "CONFIGURED"' % (host))   # signals that client host is configured (also fallback)
 
     link = r'https://github.com/nobodysu/zabbix-smartmontools/issues'
-    processData(senderData, jsonData, agentConf, senderPyPath, senderPath, timeout, host, link)
+    processData(senderData, jsonData, agentConf, senderPyPath, senderPath, delay, host, link)
 
