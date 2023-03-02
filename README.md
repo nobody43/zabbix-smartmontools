@@ -28,48 +28,48 @@ Triggers that contain `delta(5d)>0` and `last()>0` will fire on any change unles
 ## Installation
 As prerequisites you need `python3`, `smartmontools`, `sudo` and `zabbix-sender` packages. For testing, `zabbix-get` is also required.
 <br />
-Take a look at scripts first lines and provide paths if needed. If you have a RAID configuration, also provide that by hand. Choose `device` or `serial` mode. Import `Template_App_smartmontools.xml` in zabbix web interface.
+Take a look at scripts first lines and provide paths if needed. If you have a RAID configuration, also provide that manually. Choose `device` or `serial` mode. Import `Template_App_smartmontools.xml` in zabbix web interface.
 
 ### Prerequisites
 [Repository installation](https://www.zabbix.com/documentation/3.0/manual/installation/install_from_packages/repository_installation)
 #### Debian
 ```bash
-apt-get install zabbix-agent zabbix-sender smartmontools sudo
-apt-get install zabbix-get   # testing
+client# apt-get install zabbix-agent zabbix-sender smartmontools sudo
+server# apt-get install zabbix-get   # testing
 ```
 #### Centos
 ```bash
-yum install zabbix-agent zabbix-sender smartmontools sudo
-yum install zabbix-get   # testing
+client# yum install zabbix-agent zabbix-sender smartmontools sudo
+server# yum install zabbix-get   # testing
 ```
 
 ### Placing the files
 > **Note**: Your include directory may be either `zabbix_agentd.d` or `zabbix_agentd.conf.d` dependent on the distribution.
 #### Linux
 ```bash
-mv smartctl-lld.py sender_wrapper.py /etc/zabbix/scripts/
-mv sudoers.d/zabbix /etc/sudoers.d/   # place sudoers include here for smartctl-lld.py sudo access
-mv userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.d/   # move zabbix items include here
+client# mv smartctl-lld.py sender_wrapper.py /etc/zabbix/scripts/
+client# mv sudoers.d/zabbix /etc/sudoers.d/   # place sudoers include for smartctl sudo access
+client# mv userparameter_smartctl.conf /etc/zabbix/zabbix_agentd.d/   # move zabbix items include here
 ```
 
 #### FreeBSD
 ```bash
-mv smartctl-lld.py sender_wrapper.py /usr/local/etc/zabbix/scripts/
-mv sudoers.d/zabbix /usr/local/etc/sudoers.d/
-mv userparameter_smartctl.conf /usr/local/etc/zabbix/zabbix_agentd.d/
+client# mv smartctl-lld.py sender_wrapper.py /usr/local/etc/zabbix/scripts/
+client# mv sudoers.d/zabbix /usr/local/etc/sudoers.d/
+client# mv userparameter_smartctl.conf /usr/local/etc/zabbix/zabbix_agentd.d/
 ```
 
 #### Windows
 ```cmd
-move smartctl-lld.py "C:\Program Files\Zabbix Agent\scripts\"
-move sender_wrapper.py "C:\Program Files\Zabbix Agent\scripts\"
-move userparameter_smartctl.conf "C:\Program Files\Zabbix Agent\zabbix_agentd.d\"
+client> move smartctl-lld.py "C:\Program Files\Zabbix Agent\scripts\"
+client> move sender_wrapper.py "C:\Program Files\Zabbix Agent\scripts\"
+client> move userparameter_smartctl.conf "C:\Program Files\Zabbix Agent\zabbix_agentd.d\"
 ```
 Install `python3` for [all users](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
 <br />
 
 ### Finalizing
-Then you need to include your zabbix conf folder in `zabbix_agentd.conf`, like this:
+Dependent on the distribution, you may need to include your zabbix conf folder in `zabbix_agentd.conf`, like this:
 ```conf
 Include=/usr/local/etc/zabbix/zabbix_agentd.d/
 ```
@@ -77,25 +77,31 @@ Its recomended to add at least `Timeout=10` to agent and server config files to 
 
 Thats all for Windows. For others run the following to finish configuration:
 ```bash
-chmod 755 smartctl-lld.py sender_wrapper.py   # apply necessary permissions
-chown root:zabbix smartctl-lld.py sender_wrapper.py
-chmod 644 userparameter_smartctl.conf
-chown root:zabbix userparameter_smartctl.conf
-chmod 400 sudoers.d/zabbix
-chown root sudoers.d/zabbix
-visudo   # test sudoers configuration, type :q! to exit
+client# chmod 755 smartctl-lld.py sender_wrapper.py   # apply necessary permissions
+client# chown root:zabbix smartctl-lld.py sender_wrapper.py
+client# chmod 644 userparameter_smartctl.conf
+client# chown root:zabbix userparameter_smartctl.conf
+client# chmod 400 sudoers.d/zabbix
+client# chown root sudoers.d/zabbix
+client# visudo   # test sudoers configuration, type :q! to exit
 ```
 
 ## Testing
 ```bash
-zabbix_get -s 192.0.2.1 -k smartctl.discovery[get,"Example host"]
+server$ zabbix_get -s 192.0.2.1 -k smartctl.discovery[get,"Example host"]
 ```
 Default operation mode. Displays json that server should get, detaches, then waits and sends data with zabbix-sender. `Example host` is your `Host name` field in zabbix.
 <br /><br />
 
 ```bash
-zabbix_get -s 192.0.2.1 -k smartctl.discovery[getverb,"Example host"]
+server$ zabbix_get -s 192.0.2.1 -k smartctl.discovery[getverb,"Example host"]
 ```
+or locally:
+```
+client$ /etc/zabbix/scripts/smartctl-lld.py getverb "Example host"
+client_admin!_console> python "C:\Program Files\Zabbix Agent\scripts\smartctl-lld.py" getverb "Example host"
+```
+
 Verbose mode. Does not detaches or prints LLD. Lists all items sent to zabbix-sender, also it is possible to see sender output in this mode.
 <br /><br />
 
