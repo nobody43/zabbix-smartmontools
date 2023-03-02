@@ -1,6 +1,6 @@
 # zabbix-smartmontools
 ## Features
-Cross-platform SMART monitoring scripts with two display modes: [device](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-device-example.png?raw=true) and [serial](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-serial-example.png?raw=true). LLD discovers and sends data in one pass, using minimal number of utilities. Supports any SMART name and displays it as is.
+Cross-platform SMART monitoring scripts with two display modes: [device](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-device-example.png?raw=true) and [serial](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/smartctl_mode-serial-example.png?raw=true). LLD discovers and sends data in one pass, using minimal number of utilities. Supports any SMART name and displays it as is.
 
 - Utilises smartctl error return codes
 - Low-Level Discovery
@@ -12,16 +12,16 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 - Error-proof configuration: various safeguard triggers
 - Automatic RAID passthrough (when smartctl detects the drives)
 
-> **Note**: disk temperature is monitored using [different approach](https://github.com/nobodysu/zabbix-mini-IPMI).
+> **Note**: disk temperature is monitored using [different approach](https://github.com/nobody43/zabbix-mini-IPMI).
 
 ## Triggers
-![Triggers-Discovery2](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers2.png)
+![Triggers-Discovery2](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers2.png)
 
-[More disk triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers1.png)<br>
+[More disk triggers](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers1.png)<br>
 
-[Disk items](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_discovery_items.png)<br>
+[Disk items](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_discovery_items.png)<br>
 
-[Template triggers](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/smartctl_triggers.png)
+[Template triggers](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_triggers.png)
 
 Triggers that contain `delta(5d)>0` and `last()>0` will fire on any change unless last value is zero. E.g. when disk is replaced with zero values the trigger will not fire, but if value is less or more - it will. Therefore, replacing a faulty drive with faulty one will still trigger a problem that stays for 5 days (default).
 
@@ -44,7 +44,7 @@ yum install zabbix-get   # testing
 ```
 
 ### Placing the files
-> **Note**: `sender_wrapper.py` is shared among multiple projects and have the same contents - it can be overwritten.
+> **Note**: Your include directory may be either `zabbix_agentd.d` or `zabbix_agentd.conf.d` dependent on the distribution.
 #### Linux
 ```bash
 mv smartctl-lld.py sender_wrapper.py /etc/zabbix/scripts/
@@ -61,20 +61,19 @@ mv userparameter_smartctl.conf /usr/local/etc/zabbix/zabbix_agentd.d/
 
 #### Windows
 ```cmd
-move smartctl-lld.py C:\zabbix-agent\scripts\
-move sender_wrapper.py C:\zabbix-agent\scripts\
-move userparameter_smartctl.conf C:\zabbix-agent\zabbix_agentd.conf.d\
+move smartctl-lld.py "C:\Program Files\Zabbix Agent\scripts\"
+move sender_wrapper.py "C:\Program Files\Zabbix Agent\scripts\"
+move userparameter_smartctl.conf "C:\Program Files\Zabbix Agent\zabbix_agentd.d\"
 ```
-Install `python3` for [all users](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobodysu/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
+Install `python3` for [all users](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
 <br />
-> **Note**: currently windows version does not detaches and data can only be gathered on second run.
 
 ### Finalizing
 Then you need to include your zabbix conf folder in `zabbix_agentd.conf`, like this:
 ```conf
-Include=/usr/local/etc/zabbix/zabbix_agentd.conf.d/
+Include=/usr/local/etc/zabbix/zabbix_agentd.d/
 ```
-Also its recomended to add at least `Timeout=10` to config file to allow drives spun up in rare cases.
+Its recomended to add at least `Timeout=10` to agent and server config files to allow drives spun up in some cases.
 
 Thats all for Windows. For others run the following to finish configuration:
 ```bash
@@ -100,7 +99,7 @@ zabbix_get -s 192.0.2.1 -k smartctl.discovery[getverb,"Example host"]
 Verbose mode. Does not detaches or prints LLD. Lists all items sent to zabbix-sender, also it is possible to see sender output in this mode.
 <br /><br />
 
-> **Note**: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`. In this monitoring solution update interval must not be less than 80 seconds.
+> **Note**: before scripts would work, zabbix server must first discover available items. It is done in 12 hour cycles by default. You can temporary decrease this parameter for testing in `template -> Discovery -> SMART disk discovery -> Update interval`.
 
 These scripts were tested to work with following configurations:
 - Debian 11 / Server (5.0, 6.0) / Agent 4.0 / Python 3.9
@@ -113,7 +112,7 @@ These scripts were tested to work with following configurations:
 - Windows XP / Zabbix 3.0 / Python 3.4
 
 ## Updating
-Overwrite scripts and UserParameters. If UserParameters were changed - agent restart is required. If template had changed from previous version - update it in zabbix web interface [marking](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
+Overwrite scripts and UserParameters. If UserParameters were changed - agent restart is required. If template had changed from previous version - update it in zabbix web interface [marking](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
 
 > **Note**: low values in php settings `/etc/httpd/conf.d/zabbix.conf` may result in request failure. Especially `php_value memory_limit`.
 
@@ -121,7 +120,7 @@ Overwrite scripts and UserParameters. If UserParameters were changed - agent res
 Q: Trigger fires when it clearly shouldn't.<br>
 Q: Trigger's macro does not expand.<br>
 Q: Triggers from older version does not expire after update.<br>
-A: Reassign the template with `Unlink and clear` on the host for individual resolution. Or reupload the tempate [marking](https://github.com/nobodysu/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
+A: Reassign the template with `Unlink and clear` on the host for individual resolution. Or reupload the tempate [marking](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/template-updating.png) all `Delete missing` checkboxes.
 
 Q: Is it possible to monitor specific drives or exclude some of them?<br>
 Q: SCSI drive returns empty results while `-A` option working correctly.<br>
@@ -138,12 +137,12 @@ Q: Triggers `Command line did not parse` and `Device open failed` serves identic
 A: Disable unneeded pair in either template.
 
 Q: Script exits with exception/error.<br>
-A: [Report](https://github.com/nobodysu/zabbix-smartmontools/issues) it.
+A: [Report](https://github.com/nobody43/zabbix-smartmontools/issues) it.
 
 ## Known issues
-- Zabbix web panel displays an error on json discovery, but everything works fine ([#7](https://github.com/nobodysu/zabbix-smartmontools/issues/7))
-- Data on some systems may be absent right after boot due to ACHI warmup ([#14](https://github.com/nobodysu/zabbix-smartmontools/issues/14))
-- Windows version does not detaches, and data will only be gathered on second pass (probably permanent workaround)
+- Zabbix web panel displays an error on json discovery, but everything works fine ([#7](https://github.com/nobody43/zabbix-smartmontools/issues/7))
+- Data on some systems may be absent right after boot due to ACHI warmup ([#14](https://github.com/nobody43/zabbix-smartmontools/issues/14))
+- Windows version does not detaches, and data will only be gathered on second pass
 
 ## Planned features
 - SSD life monitoring (SATA)
@@ -156,4 +155,4 @@ A: [Report](https://github.com/nobodysu/zabbix-smartmontools/issues) it.
 - [What SMART Stats Tell Us About Hard Drives](https://www.backblaze.com/blog/what-smart-stats-indicate-hard-drive-failures/)
 - [SMART attributes detailed explanation](https://en.wikipedia.org/wiki/S.M.A.R.T.#Known_ATA_S.M.A.R.T._attributes)
 - [Оцениваем состояние жёстких дисков при помощи S.M.A.R.T. (Russian)](https://www.ixbt.com/storage/hdd-smart-testing.shtml)
-- [Disk and CPU temperature monitoring solution](https://github.com/nobodysu/zabbix-mini-IPMI)
+- [Disk and CPU temperature monitoring solution](https://github.com/nobody43/zabbix-mini-IPMI)
