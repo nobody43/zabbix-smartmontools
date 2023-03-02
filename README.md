@@ -15,13 +15,13 @@ Cross-platform SMART monitoring scripts with two display modes: [device](https:/
 > **Note**: disk temperature is monitored using [different approach](https://github.com/nobody43/zabbix-mini-IPMI).
 
 ## Triggers
-![Triggers-Discovery2](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers2.png)
+![Triggers-Discovery2](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/main/screenshots/smartctl_discovery_triggers2.png)
 
-[More disk triggers](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_discovery_triggers1.png)<br>
+[More disk triggers](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/main/screenshots/smartctl_discovery_triggers1.png)<br>
 
-[Disk items](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_discovery_items.png)<br>
+[Disk items](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/main/screenshots/smartctl_discovery_items.png)<br>
 
-[Template triggers](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/smartctl_triggers.png)
+[Template triggers](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/main/screenshots/smartctl_triggers.png)
 
 Triggers that contain `delta(5d)>0` and `last()>0` will fire on any change unless last value is zero. E.g. when disk is replaced with zero values the trigger will not fire, but if value is less or more - it will. Therefore, replacing a faulty drive with faulty one will still trigger a problem that stays for 5 days (default).
 
@@ -65,7 +65,7 @@ client> move smartctl-lld.py "C:\Program Files\Zabbix Agent\scripts\"
 client> move sender_wrapper.py "C:\Program Files\Zabbix Agent\scripts\"
 client> move userparameter_smartctl.conf "C:\Program Files\Zabbix Agent\zabbix_agentd.d\"
 ```
-Install `python3` for [all users](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/master/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
+Install `python3` for [all users](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation1.png), [adding it](https://github.com/nobody43/zabbix-smartmontools/blob/master/screenshots/windows_python_installation2.png) to `PATH` during installation. Install `smartmontools` and add its bin folder to `PATH` in [environment variables](https://raw.githubusercontent.com/nobody43/zabbix-smartmontools/main/screenshots/windows_environment_variables.png) (or specify absolute path to `smartctl` binary in `smartctl-lld.py`).
 <br />
 
 ### Finalizing
