@@ -23,12 +23,12 @@ SENDER_PATH          = r'zabbix_sender'                                         
 DELAY = '50'   # how long the script must wait between LLD and sending, increase if data received late (does not affect windows)
                # this setting MUST be lower than 'Update interval' in discovery rule
 
-PER_DISK_TIMEOUT = 3   # Single disk query can not exceed this value. Python33 or above required.
+PER_DISK_TIMEOUT = 8   # Single disk query can not exceed this value. Python33 or above required.
 
 IS_SKIP_DUPLICATES = True  # skip duplicate disk outputs. 'DriveStatus' json will not be skipped
                            # determined by disk serial, model, capacity and firmware (serial + at least one of others)
 
-IS_CHECK_NVME = False       # Additional overhead. Should be disabled if smartmontools is >= 7 or NVMe is absent.
+IS_CHECK_NVME = False      # Additional overhead. Should be disabled if smartmontools is >= 7 or NVMe is absent.
 
 # manually provide disk list or RAID configuration if needed
 DISK_DEVS_MANUAL = []
@@ -188,6 +188,8 @@ def findProcOut(devicePath_):
 
         if e.args[0] == 1 or e.args[0] == 2:
             msg = 'DISKFATAL_ERR_CODE_%s' % (str(e.args[0]))
+        elif whyNoSmart(p).startswith('SMART_'):
+            msg = 'SMART_NONE'  # transition
         else:
             msg = 'ERR_CODE_%s' % (str(e.args[0]))
 
