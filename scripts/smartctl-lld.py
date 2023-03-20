@@ -153,7 +153,7 @@ def findProcOut(devicePath_):
     if not DISK_DEVS_MANUAL:
         devicePath_ = devicePath_.replace('-d scsi', '-d auto')   # bug handling; prevent empty results
 
-    p = None
+    p = ''
     msg = None
     try:
         cmd = addSudoIfNix([BIN_PATH, '-a']) + shlex.split(devicePath_)
@@ -215,7 +215,7 @@ def findSmart(p_, diskIdent_):
         ('smartctl.info[%s,serial]',           r'^Serial Number:\s+(.+)$'),
         ('smartctl.info[%s,sataVersion]',      r'^SATA Version is:\s+(.+)$'),
         ('smartctl.info[%s,bandwidthMax]',     r'^SATA Version is:\s+.+,\s+(\d+\.\d+)\s+Gb\/s'),
-        ('smartctl.info[%s,bandwidthCurrent]', r'^SATA Version is:\s+.+current\:\s+(\d+\.\d+)\s+Gb\/s'),
+        ('smartctl.info[%s,bandwidthCurrent]', r'^SATA Version is:\s+.+current\:\s+(\d+\.\d+)\s+Gb\/s|^SATA Version is:\s+.+,\s+(\d+\.\d+)\s+Gb\/s'),  # magic; second one is 'current' only when first one is absent
         ('smartctl.info[%s,rpm]',              r'^Rotation Rate:\s+(\d+)\s+rpm$'),
         ('smartctl.info[%s,formFactor]',       r'^Form Factor:\s+(.+)$'),
         ('smartctl.info[%s,firmware]',         r'^Firmware Version:\s+(.+)$'),
@@ -329,6 +329,7 @@ def findIdent(p_, devName_):
         '^Logical Unit id:\s+(.+)$',
     )
 
+    ident = None
     for i in identPatterns:
         identRe = re.search(i, p_, re.I | re.M)
         if identRe:
