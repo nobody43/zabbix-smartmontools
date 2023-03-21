@@ -188,8 +188,8 @@ def findProcOut(devicePath_):
 
         if e.args[0] == 1 or e.args[0] == 2:
             msg = 'DISKFATAL_ERR_CODE_%s' % (str(e.args[0]))
-        elif whyNoSmart(p).startswith('SMART_'):
-            msg = 'SMART_NONE'  # transition
+        elif whyNoSmart(p):
+            msg = str(whyNoSmart(p))
         else:
             msg = 'ERR_CODE_%s' % (str(e.args[0]))
 
@@ -249,7 +249,7 @@ def findSmart(p_, diskIdent_):
     valuesRe = re.findall(r'^(?:\s+)?(\d+)\s+([\w-]+)\s+[\w-]+\s+\d{3}\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+[\w-]+\s+(\d+)', p_, re.M | re.I)
     if valuesRe:
         gotValues = True
-        sender.append('"%s" smartctl.info[%s,SmartStatus] "SMART_PRESENT_SATA"' % (HOST, diskIdent_))
+        sender.append('"%s" smartctl.info[%s,SmartStatus] "SMART_SATA"' % (HOST, diskIdent_))
         for num, name, val in valuesRe:
             sender.append('"%s" smartctl.value[%s,%s] %s' % (HOST, diskIdent_, num, val))
             json.append({('{#DVALUE%s}' % num):diskIdent_, '{#SMARTNAME}':name})
@@ -295,7 +295,7 @@ def whyNoSmart(p_):
         ('SMART_UNK_USB_BRIDGE',  r'Unknown USB bridge'),
     )
 
-    msg = "SMART_NO_VALUES"
+    msg = None
     for m, regexp in messagesAndRegexps:
         val = re.search(regexp, p_, re.M | re.I)
         if val:
@@ -398,11 +398,11 @@ if __name__ == '__main__':
             diskSenderSAS = findSmartSAS_Out[0]
             diskJsonSAS   = findSmartSAS_Out[1]
             if diskSenderSAS:
-                senderData.append('"%s" smartctl.info[%s,SmartStatus] "SMART_PRESENT_SAS"' % (HOST, diskIdent))
+                senderData.append('"%s" smartctl.info[%s,SmartStatus] "SMART_SAS"' % (HOST, diskIdent))
                 senderData.extend(diskSenderSAS)
                 jsonData.extend(diskJsonSAS)
             else:
-                senderData.append('"%s" smartctl.info[%s,SmartStatus] "%s"' % (HOST, diskIdent, whyNoSmart(disk_pOut)))
+                senderData.append('"%s" smartctl.info[%s,SmartStatus] "%s"' % (HOST, diskIdent, str(whyNoSmart(disk_pOut))))
 
     if fatalError:
         configStatus = fatalError
