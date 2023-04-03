@@ -186,10 +186,10 @@ def findProcOut(devicePath_):
         '''
         p = e.output
 
-        if e.args[0] == 1 or e.args[0] == 2:
-            msg = 'DISKFATAL_ERR_CODE_%s' % (str(e.args[0]))
-        elif whyNoSmart(p):
+        if whyNoSmart(p):
             msg = str(whyNoSmart(p))
+        elif e.args[0] == 1 or e.args[0] == 2:
+            msg = 'DISKFATAL_ERR_CODE_%s' % (str(e.args[0]))
         else:
             msg = 'ERR_CODE_%s' % (str(e.args[0]))
 
