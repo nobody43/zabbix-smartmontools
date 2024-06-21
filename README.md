@@ -28,7 +28,7 @@ Triggers that contain `delta(5d)>0` and `last()>0` will fire on any change unles
 ## Installation
 As prerequisites you need `python3`, `smartmontools`, `sudo` and `zabbix-sender` packages. For testing, `zabbix-get` is also required.
 <br />
-Take a look at scripts first lines and provide paths if needed. If you have a RAID configuration, also provide that manually. Choose `device` or `serial` mode. Import `Template_App_smartmontools.xml` in zabbix web interface.
+Take a look at scripts first lines and provide paths if needed. If you have a RAID configuration, also provide that manually. Choose `device` or `serial` mode at the top of the script. Import `Template_App_smartmontools.xml` in zabbix web interface.
 
 ### Prerequisites
 [Repository installation](https://www.zabbix.com/documentation/3.0/manual/installation/install_from_packages/repository_installation)
