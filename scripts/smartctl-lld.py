@@ -47,6 +47,27 @@ from sender_wrapper import (readConfig, processData, clearDiskTypeStr, sanitizeS
 HOST = sys.argv[2]
 
 
+def findIdent(p_, devName_):
+
+    identPatterns = (
+        r'^Serial Number:\s+(.+)$',
+        r'^LU WWN Device Id:\s+(.+)$',
+        r'^Logical Unit id:\s+(.+)$',
+    )
+
+    ident = None
+    for i in identPatterns:
+        identRe = re.search(i, p_, re.I | re.M)
+        if identRe:
+            ident = sanitizeStr(identRe.group(1))
+            break
+
+    if not ident:
+        ident = devName_
+
+    return ident
+
+
 def scanDisks(mode_):
     '''Determines available disks. Can be skipped.'''
     if   mode_ == 'NOTYPE':
@@ -241,7 +262,7 @@ def findSmart(p_, diskIdent_):
     # Special cases <3
     capacityRe = re.search(r'^User Capacity:\s+(.+)bytes', p_, re.M | re.I)
     if capacityRe:
-        capacitySub = re.sub('\s|\,', '', capacityRe.group(1))
+        capacitySub = re.sub(r'\s|\,', '', capacityRe.group(1))
         sender.append('"%s" smartctl.info[%s,capacity] "%s"' % (HOST, diskIdent_, capacitySub))
 
     # Catch number, name and value
@@ -321,27 +342,6 @@ def sanitizeQuotes(string):
         string = string.replace("'", r"\'")
 
     return string
-
-
-def findIdent(p_, devName_):
-
-    identPatterns = (
-        '^Serial Number:\s+(.+)$',
-        '^LU WWN Device Id:\s+(.+)$',
-        '^Logical Unit id:\s+(.+)$',
-    )
-
-    ident = None
-    for i in identPatterns:
-        identRe = re.search(i, p_, re.I | re.M)
-        if identRe:
-            ident = sanitizeStr(identRe.group(1))
-            break
-
-    if not ident:
-        ident = devName_
-
-    return ident
 
 
 if __name__ == '__main__':
